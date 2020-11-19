@@ -8,6 +8,7 @@ import io.grpc.ManagedChannel;
 import com.google.protobuf.ByteString;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
@@ -31,6 +32,15 @@ public class ClientFrontend {
         request.setFile(bytes);
 
         stub.upload(request.build());
+    }
+
+    public void download(String filename) throws FileNotFoundException, IOException {
+        DownloadRequest request = DownloadRequest.newBuilder().setName(filename).build();
+        DownloadResponse response = stub.download(request);
+        FileOutputStream fos = new FileOutputStream(filename);
+        ByteString bytes = response.getFile();
+
+        bytes.writeTo(fos);
     }
 
     public void close() {
