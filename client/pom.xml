@@ -18,7 +18,7 @@
   </parent>
 
   <properties>
-      <mainclass>sirs.client.Client</mainclass>
+      <mainclass>sirs.client.ClientApp</mainclass>
   </properties>
 
   <dependencies>

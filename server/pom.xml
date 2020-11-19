@@ -19,7 +19,7 @@
   </parent>
 
   <properties>
-      <mainclass>sirs.server.Server</mainclass>
+      <mainclass>sirs.server.ServerApp</mainclass>
   </properties>
 
   <dependencies>
