@@ -162,3 +162,5 @@ modules.xml
 # End of https://www.gitignore.io/api/intellij+all
 *.bak
 .vscode
+
+server/src/main/resources/application.properties

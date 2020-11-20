@@ -1,6 +1,7 @@
 package sirs.client;
 
 import io.grpc.StatusRuntimeException;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
@@ -13,14 +14,21 @@ public class ClientApp {
         String port = "8080";
 
         ClientFrontend frontend = new ClientFrontend(host, port);
-
+        try {
+            frontend.upload(args[0]);
+        } catch (StatusRuntimeException e) {
+            System.out.println(e.getMessage());
+        } finally {
+            frontend.close();
+        }
+        /*
         try {
             frontend.download(args[0]);
         } catch (StatusRuntimeException e) {
             System.out.println(e.getMessage());
         } finally {
             frontend.close();
-        }
+        }*/
 
         System.out.println("bye!");
     }
