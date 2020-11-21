@@ -28,6 +28,7 @@ public class ClientFrontend {
         File file = new File(filename);
         FileInputStream fis = new FileInputStream(file);
         ByteString bytes = ByteString.readFrom(fis);
+        fis.close();
 
         request.setFile(bytes);
 
@@ -41,6 +42,7 @@ public class ClientFrontend {
         ByteString bytes = response.getFile();
 
         bytes.writeTo(fos);
+        fos.close();
     }
 
     public void close() {
