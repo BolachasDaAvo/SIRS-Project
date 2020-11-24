@@ -25,7 +25,7 @@ public class ClientFrontend {
     public ClientFrontend(String host, String port) throws SSLException {
         String target = host + ":" + port;
 
-        channel = NettyChannelBuilder.forTarget(target).sslContext(GrpcSslContexts.forClient().trustManager(new File("TLS/client/certClient.pem")).build()).build();
+        channel = NettyChannelBuilder.forTarget(target).sslContext(GrpcSslContexts.forClient().trustManager(new File("../TLS/client/certClient.pem")).build()).build();
         stub = RemoteGrpc.newBlockingStub(channel);
 
     }
