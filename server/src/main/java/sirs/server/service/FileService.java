@@ -36,8 +36,8 @@ public class FileService {
 
     @Retryable(value = {SQLException.class}, backoff = @Backoff(delay = 5000))
     @Transactional(isolation = Isolation.REPEATABLE_READ)
-    public File getFile(int fileId) {
-        File file = fileRepository.findById(fileId).orElseThrow();
+    public File getFile(String name) {
+        File file = fileRepository.findByName(name).orElse(null);
         return file;
     }
 
@@ -46,6 +46,13 @@ public class FileService {
     public void updateFileContent() {
         //TODO: decide how we want to do this since files may be very big and not fit in memory
         // we should do it by batches, just need to decide where.
+    }
+
+    @Retryable(value = {SQLException.class}, backoff = @Backoff(delay = 5000))
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
+    public void updateVersion(String name) {
+        File file = getFile(name);
+        file.incrementVersion();
     }
 
 

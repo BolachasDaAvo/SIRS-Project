@@ -10,11 +10,12 @@ import sirs.server.service.FileService;
 import sirs.server.service.InviteService;
 import sirs.server.service.UserService;
 
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+
+import sirs.server.domain.File;
 
 @Component
 public class ServerImpl extends RemoteImplBase {
@@ -28,17 +29,41 @@ public class ServerImpl extends RemoteImplBase {
     @Autowired
     private InviteService inviteService;
 
-    @Override
-    public void upload(final UploadRequest request, final StreamObserver<UploadResponse> responseObserver) {
-        System.out.println(request.getName());
-
+    private void writeFile(ByteString bytes, String path) {
         try {
-            ByteString bytes = request.getFile();
-            FileOutputStream fos = new FileOutputStream(request.getName());
+            FileOutputStream fos = new FileOutputStream(path);
             bytes.writeTo(fos);
         } catch (Exception e) {
             System.out.println("Failed writing file");
         }
+    }
+
+    private ByteString readFile(String path) {
+        try {
+            FileInputStream fis = new FileInputStream(path);
+            return ByteString.readFrom(fis);
+        } catch (Exception e) {
+            System.out.println("Failed reading from file");
+        }
+        return null;
+    }
+
+    @Override
+    public void upload(final UploadRequest request, final StreamObserver<UploadResponse> responseObserver) {
+        // TODO: Use jwt to authenticate user
+        // Construct path
+        String filename = request.getName();
+        String filePath = "./users/mockuser/" + filename;
+
+        // Check if file already exists
+        if (fileService.getFile(filename) == null)
+            fileService.createFile(1, filename, filePath);
+        else {
+            fileService.updateVersion(filename);
+        }
+
+        writeFile(request.getFile(), filePath);
+
         final UploadResponse response = UploadResponse.getDefaultInstance();
         responseObserver.onNext(response);
         responseObserver.onCompleted();
@@ -48,14 +73,13 @@ public class ServerImpl extends RemoteImplBase {
     public void download(final DownloadRequest request, final StreamObserver<DownloadResponse> responseObserver) {
         String filename = request.getName();
         DownloadResponse.Builder builder = DownloadResponse.newBuilder();
-        try {
-            File file = new File(filename);
-            FileInputStream fis = new FileInputStream(file);
-            ByteString bytes = ByteString.readFrom(fis);
-            builder.setFile(bytes);
-        } catch (Exception e) {
-            System.out.println("Failed reading from file");
-        }
+        File file = fileService.getFile(filename);
+        // TODO: Test file existence
+        // TODO: Implement gRPC exceptions
+        String filePath = file.getPath();
+        ByteString bytes = readFile(filePath);
+        builder.setFile(bytes);
+
         responseObserver.onNext(builder.build());
         responseObserver.onCompleted();
     }

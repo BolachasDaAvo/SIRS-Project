@@ -51,6 +51,10 @@ public class File {
         this.version = version;
     }
 
+    public void incrementVersion() {
+        this.version++;
+    }
+
     public String getPath() {
         return path;
     }
