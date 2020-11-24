@@ -49,6 +49,11 @@
             <artifactId>javax.annotation-api</artifactId>
             <version>${version.javax.annotation-api}</version>
         </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty</artifactId>
+            <version>${version.grpc}</version>
+        </dependency>
     </dependencies>
 
     <build>

@@ -11,18 +11,23 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import io.grpc.netty.GrpcSslContexts;
+import io.grpc.netty.NettyChannelBuilder;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+
+import javax.net.ssl.SSLException;
 
 public class ClientFrontend {
     final ManagedChannel channel;
     RemoteGrpc.RemoteBlockingStub stub;
 
-    public ClientFrontend(String host, String port) {
+    public ClientFrontend(String host, String port) throws SSLException {
         String target = host + ":" + port;
 
-        channel = ManagedChannelBuilder.forTarget(target).usePlaintext().build();
+        channel = NettyChannelBuilder.forTarget(target).sslContext(GrpcSslContexts.forClient().trustManager(new File("TLS/client/certClient.pem")).build()).build();
         stub = RemoteGrpc.newBlockingStub(channel);
 
-        //GreetingServiceGrpc.GreetingServiceBlockingStub stub = GreetingServiceGrpc.newBlockingStub(channel);
     }
 
     public void upload(String filename) throws FileNotFoundException, IOException {

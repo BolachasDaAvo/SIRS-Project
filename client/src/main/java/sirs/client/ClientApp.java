@@ -26,7 +26,7 @@ public class ClientApp {
 
         ClientFrontend frontend = new ClientFrontend(host, port);
         try {
-            download(frontend, args[0]);
+            upload(frontend, args[0]);
         } catch (StatusRuntimeException e) {
             System.out.println(e.getMessage());
         } finally {

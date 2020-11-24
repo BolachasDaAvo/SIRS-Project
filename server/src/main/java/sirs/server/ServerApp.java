@@ -29,9 +29,9 @@ public class ServerApp {
         return args -> {
             System.out.println("Hello World!");
 
-            
+
             // Enable TLS
-            Server server = ServerBuilder.forPort(8443).useTransportSecurity(new File("TLS/certTLS.pem"), new File("TLS/privKeyTLS.pem")).addService(serverImpl).build();
+            Server server = ServerBuilder.forPort(8443).useTransportSecurity(new File("TLS/server/certTLS.pem"), new File("TLS/server/privKeyTLS.pem")).addService(serverImpl).build();
 
 
             try {
