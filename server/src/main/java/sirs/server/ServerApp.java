@@ -28,7 +28,10 @@ public class ServerApp {
         return args -> {
             System.out.println("Hello World!");
 
-            Server server = ServerBuilder.forPort(8080).addService(serverImpl).build();
+            Server server = ServerBuilder.forPort(8443).addService(serverImpl).build();
+            // Enable TLS
+            //Server server = ServerBuilder.forPort(8443).useTransportSecurity(certChainFile, privateKeyFile).addService(serverImpl).build();
+
 
             try {
                 server.start();

@@ -22,7 +22,7 @@ public class ClientApp {
         System.out.println("Hello World!");
 
         String host = "localhost";
-        String port = "8080";
+        String port = "8443";
 
         ClientFrontend frontend = new ClientFrontend(host, port);
         try {

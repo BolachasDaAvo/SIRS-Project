@@ -21,6 +21,8 @@ public class ClientFrontend {
 
         channel = ManagedChannelBuilder.forTarget(target).usePlaintext().build();
         stub = RemoteGrpc.newBlockingStub(channel);
+
+        //GreetingServiceGrpc.GreetingServiceBlockingStub stub = GreetingServiceGrpc.newBlockingStub(channel);
     }
 
     public void upload(String filename) throws FileNotFoundException, IOException {
