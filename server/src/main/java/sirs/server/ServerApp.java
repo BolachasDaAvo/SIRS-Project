@@ -11,6 +11,7 @@ import org.springframework.context.annotation.PropertySource;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Scanner;
 
@@ -28,9 +29,9 @@ public class ServerApp {
         return args -> {
             System.out.println("Hello World!");
 
-            Server server = ServerBuilder.forPort(8443).addService(serverImpl).build();
+            
             // Enable TLS
-            //Server server = ServerBuilder.forPort(8443).useTransportSecurity(certChainFile, privateKeyFile).addService(serverImpl).build();
+            Server server = ServerBuilder.forPort(8443).useTransportSecurity(new File("TLS/certTLS.pem"), new File("TLS/privKeyTLS.pem")).addService(serverImpl).build();
 
 
             try {
