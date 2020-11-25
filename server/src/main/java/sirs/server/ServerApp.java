@@ -31,7 +31,7 @@ public class ServerApp {
 
 
             // Enable TLS
-            Server server = ServerBuilder.forPort(8443).useTransportSecurity(new File("../TLS/server/certTLS.pem"), new File("../TLS/server/privKeyTLS.pem")).addService(serverImpl).build();
+            Server server = ServerBuilder.forPort(8443).useTransportSecurity(new File("../TLS/server-cert.pem"), new File("../TLS/server-key.pem")).addService(serverImpl).build();
 
 
             try {

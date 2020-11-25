@@ -22,10 +22,8 @@ public class ClientFrontend {
     final ManagedChannel channel;
     RemoteGrpc.RemoteBlockingStub stub;
 
-    public ClientFrontend(String host, String port) throws SSLException {
-        String target = host + ":" + port;
-
-        channel = NettyChannelBuilder.forTarget(target).sslContext(GrpcSslContexts.forClient().trustManager(new File("../TLS/client/certClient.pem")).build()).build();
+    public ClientFrontend(String host, int port) throws SSLException {
+        channel = NettyChannelBuilder.forAddress(host, port).sslContext(GrpcSslContexts.forClient().trustManager(new File("../TLS/ca-cert.pem")).build()).build();
         stub = RemoteGrpc.newBlockingStub(channel);
 
     }
