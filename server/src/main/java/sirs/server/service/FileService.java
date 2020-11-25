@@ -25,7 +25,6 @@ public class FileService {
     @Retryable(value = {SQLException.class}, backoff = @Backoff(delay = 5000))
     @Transactional(isolation = Isolation.REPEATABLE_READ)
     public void createFile(int ownerId, String fileName, String path) {
-        //TODO: figure out file path
         User owner = userRepository.findById(ownerId).orElseThrow();
         File file = new File(1, owner, fileName, path);
         file.addCollaborator(owner);
@@ -36,9 +35,16 @@ public class FileService {
 
     @Retryable(value = {SQLException.class}, backoff = @Backoff(delay = 5000))
     @Transactional(isolation = Isolation.REPEATABLE_READ)
-    public File getFile(String name) {
-        File file = fileRepository.findByName(name).orElse(null);
+    public File getFileByPath(String path) {
+        File file = fileRepository.findByPath(path).orElse(null);
         return file;
+    }
+
+    @Retryable(value = {SQLException.class}, backoff = @Backoff(delay = 5000))
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
+    public File getFileByUser(String name, int userId) {
+        User user = userRepository.findById(userId).orElseThrow();
+        return user.getFileByName(name);
     }
 
     @Retryable(value = {SQLException.class}, backoff = @Backoff(delay = 5000))
@@ -50,8 +56,8 @@ public class FileService {
 
     @Retryable(value = {SQLException.class}, backoff = @Backoff(delay = 5000))
     @Transactional(isolation = Isolation.REPEATABLE_READ)
-    public void updateVersion(String name) {
-        File file = getFile(name);
+    public void updateVersion(String path) {
+        File file = fileRepository.findByPath(path).orElse(null);
         file.incrementVersion();
     }
 

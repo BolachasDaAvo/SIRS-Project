@@ -7,12 +7,20 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.PropertySource;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
+import sirs.server.security.AuthInterceptor;
+import sirs.server.security.JwtTokenProvider;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.security.KeyFactory;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Scanner;
 
 @SpringBootApplication
@@ -29,10 +37,24 @@ public class ServerApp {
         return args -> {
             System.out.println("Hello World!");
 
+            // Get public key and private key
+            PublicKey publicKey = ((X509Certificate) CertificateFactory
+                    .getInstance("X.509")
+                    .generateCertificate(new FileInputStream("../TLS/server-cert.pem")))
+                    .getPublicKey();
+            PrivateKey privateKey = KeyFactory
+                    .getInstance("RSA")
+                    .generatePrivate(new PKCS8EncodedKeySpec(new FileInputStream("../TLS/server-key_pkcs8.key").readAllBytes()));
+            JwtTokenProvider.publicKey = publicKey;
+            JwtTokenProvider.privateKey = privateKey;
 
             // Enable TLS
-            Server server = ServerBuilder.forPort(8443).useTransportSecurity(new File("../TLS/server-cert.pem"), new File("../TLS/server-key.pem")).addService(serverImpl).build();
-
+            Server server = ServerBuilder
+                    .forPort(8443)
+                    .useTransportSecurity(new File("../TLS/server-cert.pem"), new File("../TLS/server-key.pem"))
+                    .intercept(new AuthInterceptor())
+                    .addService(serverImpl)
+                    .build();
 
             try {
                 server.start();

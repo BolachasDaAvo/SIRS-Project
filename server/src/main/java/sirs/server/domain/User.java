@@ -29,8 +29,8 @@ public class User {
     @JoinColumn(name = "file_ids", nullable = false)
     private List<File> files = new ArrayList<File>();
 
-    // TODO: change type
-    private byte[] certificate = new byte[1];
+    @Column(name = "certificate", nullable = false, columnDefinition = "BLOB")
+    private byte[] certificate;
 
     public User() {
     }
@@ -82,6 +82,15 @@ public class User {
 
     public void addFile(File file) {
         this.files.add(file);
+    }
+
+    public File getFileByName(String fileName) {
+        for (File file : files) {
+            if (file.getName().equals(fileName)) {
+                return file;
+            }
+        }
+        return null;
     }
 
     @Override

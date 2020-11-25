@@ -164,3 +164,7 @@ modules.xml
 .vscode
 
 server/src/main/resources/application.properties
+server/users/*
+
+client/poem.txt.aes
+client/poem.txt.key

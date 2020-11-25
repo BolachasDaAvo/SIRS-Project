@@ -23,7 +23,7 @@ public class File {
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Column(name = "path", nullable = false)
+    @Column(name = "path", nullable = false, unique = true)
     private String path;
 
     @ManyToMany(fetch = FetchType.LAZY, mappedBy = "files", cascade = CascadeType.REMOVE)
@@ -85,6 +85,14 @@ public class File {
 
     public void removeCollaborator(int id) {
         this.collaborators = this.collaborators.stream().filter(user -> user.getId() != id).collect(Collectors.toList());
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public void removeCollaborator(User user) {

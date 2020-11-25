@@ -1,21 +1,24 @@
 package sirs.client;
 
+import io.grpc.StatusException;
 import sirs.grpc.Contract.*;
 import sirs.grpc.RemoteGrpc;
-import io.grpc.StatusRuntimeException;
-import io.grpc.ManagedChannelBuilder;
 import io.grpc.ManagedChannel;
 import com.google.protobuf.ByteString;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
+
+import java.io.*;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.util.Base64;
+
 import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NettyChannelBuilder;
-import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import javax.net.ssl.SSLException;
 
 public class ClientFrontend {
@@ -25,7 +28,31 @@ public class ClientFrontend {
     public ClientFrontend(String host, int port) throws SSLException {
         channel = NettyChannelBuilder.forAddress(host, port).sslContext(GrpcSslContexts.forClient().trustManager(new File("../TLS/ca-cert.pem")).build()).build();
         stub = RemoteGrpc.newBlockingStub(channel);
+    }
 
+    public void register(String username, ByteString certificate) {
+        RegisterRequest request = RegisterRequest.newBuilder().setUsername(username).setCertificate(certificate).build();
+        stub.register(request);
+    }
+
+    public void login(String username, PrivateKey privateKey) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, UnsupportedEncodingException {
+
+        // Request number
+        NumberRequest numberRequest = NumberRequest.newBuilder().setUsername(username).build();
+        NumberResponse numberResponse = stub.getNumber(numberRequest);
+        String number = numberResponse.getNumber();
+
+        // Cipher number with private key
+        Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+        cipher.init(Cipher.ENCRYPT_MODE, privateKey);
+        byte[] cipheredNumber = cipher.doFinal(number.getBytes("UTF8"));
+
+        // Request login token
+        TokenRequest tokenRequest = TokenRequest.newBuilder().setUsername(username).setNumber(ByteString.copyFrom(cipheredNumber)).build();
+        TokenResponse tokenResponse = stub.getToken(tokenRequest);
+
+        // Set token
+        this.stub = this.stub.withCallCredentials(new AuthCreadentials(tokenResponse.getToken()));
     }
 
     public void upload(String filename) throws FileNotFoundException, IOException {

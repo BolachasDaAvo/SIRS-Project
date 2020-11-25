@@ -12,6 +12,6 @@ import java.util.Optional;
 @Transactional
 public interface FileRepository extends JpaRepository<File, Integer> {
 
-    @Query(value = "SELECT * FROM file WHERE name = :name", nativeQuery = true)
-    Optional<File> findByName(String name);
+    @Query(value = "SELECT * FROM file WHERE path = :path", nativeQuery = true)
+    Optional<File> findByPath(String path);
 }
