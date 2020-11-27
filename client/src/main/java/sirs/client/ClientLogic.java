@@ -95,7 +95,6 @@ public class ClientLogic {
     public void invite(String fileName, String username) throws GeneralSecurityException, IOException {
         byte[] certBytes = this.frontend.share(username);
         X509Certificate certificate = (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(new ByteArrayInputStream(certBytes));
-        PublicKey key = certificate.getPublicKey();
 
         if (!new File(fileName + ".key").exists()) {
             System.out.println("No key found for file");
@@ -104,7 +103,7 @@ public class ClientLogic {
 
         byte[] fileKey = Files.readAllBytes(new File(fileName + ".key").toPath());
         Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-        cipher.init(Cipher.ENCRYPT_MODE, key);
+        cipher.init(Cipher.ENCRYPT_MODE, certificate);
         byte[] keyBytes = cipher.doFinal(fileKey);
 
         String encryptedFile = fileName + ".aes";
