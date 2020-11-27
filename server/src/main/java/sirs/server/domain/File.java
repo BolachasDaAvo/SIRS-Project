@@ -17,6 +17,10 @@ public class File {
     private int version;
 
     @ManyToOne
+    @JoinColumn(name = "owner", nullable = false)
+    private User owner;
+
+    @ManyToOne
     @JoinColumn(name = "last_modifier", nullable = false)
     private User lastModifier;
 
@@ -56,6 +60,14 @@ public class File {
 
     public void incrementVersion() {
         this.version++;
+    }
+
+    public User getOwner() {
+        return owner;
+    }
+
+    public void setOwner(User owner) {
+        this.owner = owner;
     }
 
     public String getPath() {

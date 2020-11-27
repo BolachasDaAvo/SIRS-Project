@@ -22,7 +22,7 @@ public class Invite {
     @OnDelete(action = OnDeleteAction.CASCADE)
     private File file;
 
-    @Column(name = "fileKey", nullable = false)
+    @Column(name = "fileKey", nullable = false, columnDefinition = "BLOB")
     private byte[] fileKey;
 
     public Invite() {

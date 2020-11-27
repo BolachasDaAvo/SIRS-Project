@@ -45,10 +45,29 @@ message TokenResponse {
     string token = 1;
 }
 
+message ShareRequest {
+    string user = 1;
+}
+
+message ShareResponse {
+    bytes certificate = 1;
+}
+
+message InviteRequest {
+    string user = 1;
+    string file = 2;
+    bytes key = 3;
+}
+
+message InviteResponse {
+}
+
 service Remote {
     rpc upload(UploadRequest) returns (UploadResponse);
     rpc Download(DownloadRequest) returns (DownloadResponse);
     rpc Register(RegisterRequest) returns (RegisterResponse);
     rpc GetNumber(NumberRequest) returns (NumberResponse);
     rpc GetToken(TokenRequest) returns (TokenResponse);
+    rpc Share(ShareRequest) returns (ShareResponse);
+    rpc Invite(InviteRequest) returns (InviteResponse);
 }

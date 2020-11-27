@@ -27,6 +27,7 @@ public class FileService {
     public void createFile(int ownerId, String fileName, String path, byte[] signature) {
         User owner = userRepository.findById(ownerId).orElseThrow();
         File file = new File(1, owner, fileName, path);
+        file.setOwner(owner);
         file.addCollaborator(owner);
         file.setLastModifier(owner);
         file.setSignature(signature);

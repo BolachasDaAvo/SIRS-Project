@@ -118,6 +118,58 @@ public class ServerImpl extends RemoteImplBase {
     }
 
     @Override
+    public void share(final ShareRequest request, final StreamObserver<ShareResponse> responseObserver) {
+        Integer userId = AuthInterceptor.USER_ID.get();
+        if (userId == -1) {
+            responseObserver.onError(Status.UNAUTHENTICATED.withDescription("Share endpoint is for authenticated users only.").asRuntimeException());
+            return;
+        }
+
+        String username = request.getUser();
+        User user;
+        try {
+            user = userService.getUserByUsername(username);
+        } catch (Exception e) {
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("User does not exist.").asRuntimeException());
+            return;
+        }
+        byte[] certBytes = user.getCertificate();
+        ByteString cert = ByteString.copyFrom(certBytes);
+
+        ShareResponse response = ShareResponse.newBuilder().setCertificate(cert).build();
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void invite(final InviteRequest request, final StreamObserver<InviteResponse> responseObserver) {
+        Integer userId = AuthInterceptor.USER_ID.get();
+        if (userId == -1) {
+            responseObserver.onError(Status.UNAUTHENTICATED.withDescription("Invite endpoint is for authenticated users only.").asRuntimeException());
+            return;
+        }
+
+        // Make sure user owns the file
+        String fileName = request.getFile();
+        File file = fileService.getFileByUser(fileName, userId);
+        if (file == null || file.getOwner().getId() != userId) {
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("User does not own the file.").asRuntimeException());
+            return;
+        }
+
+        User invited = userService.getUserByUsername(request.getUser());
+        ByteString key = request.getKey();
+        byte[] keyBytes = new byte[key.size()];
+        key.copyTo(keyBytes, 0);
+
+        inviteService.createInvite(invited.getId(), file.getId(), keyBytes);
+
+        InviteResponse response = InviteResponse.newBuilder().build();
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+    }
+
+    @Override
     public void register(RegisterRequest request, StreamObserver<RegisterResponse> responseObserver) {
         User user;
         try {

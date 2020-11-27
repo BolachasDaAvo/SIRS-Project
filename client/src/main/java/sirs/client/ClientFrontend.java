@@ -98,6 +98,25 @@ public class ClientFrontend {
         }
     }
 
+    public byte[] share(String user) {
+        ShareRequest request = ShareRequest.newBuilder().setUser(user).build();
+        ShareResponse response = stub.share(request);
+        ByteString cert = response.getCertificate();
+        byte[] certBytes = new byte[cert.size()];
+        cert.copyTo(certBytes, 0);
+
+        return certBytes;
+    }
+
+    public void invite(String user, String file, byte[] keyBytes) throws FileNotFoundException, IOException {
+        InviteRequest.Builder request = InviteRequest.newBuilder();
+        ByteString key = ByteString.copyFrom(keyBytes);
+        request.setUser(user);
+        request.setFile(file);
+        request.setKey(key);
+        stub.invite(request.build());
+    }
+
     private boolean verifySignature(byte[] file, byte[] cert, byte[] signature) throws GeneralSecurityException, CertificateException {
         X509Certificate certificate = (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(new ByteArrayInputStream(cert));
 
