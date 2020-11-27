@@ -24,11 +24,12 @@ public class FileService {
 
     @Retryable(value = {SQLException.class}, backoff = @Backoff(delay = 5000))
     @Transactional(isolation = Isolation.REPEATABLE_READ)
-    public void createFile(int ownerId, String fileName, String path) {
+    public void createFile(int ownerId, String fileName, String path, byte[] signature) {
         User owner = userRepository.findById(ownerId).orElseThrow();
         File file = new File(1, owner, fileName, path);
         file.addCollaborator(owner);
         file.setLastModifier(owner);
+        file.setSignature(signature);
         owner.addFile(file);
         fileRepository.save(file);
     }
@@ -56,9 +57,12 @@ public class FileService {
 
     @Retryable(value = {SQLException.class}, backoff = @Backoff(delay = 5000))
     @Transactional(isolation = Isolation.REPEATABLE_READ)
-    public void updateVersion(String path) {
+    public void updateFile(String path, byte[] signature, int modifierId) {
+        User modifier = userRepository.findById(modifierId).orElseThrow();
         File file = fileRepository.findByPath(path).orElse(null);
         file.incrementVersion();
+        file.setSignature(signature);
+        file.setLastModifier(modifier);
     }
 
 

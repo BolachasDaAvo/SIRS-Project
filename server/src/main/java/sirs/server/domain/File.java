@@ -26,6 +26,9 @@ public class File {
     @Column(name = "path", nullable = false, unique = true)
     private String path;
 
+    @Column(name = "signature", nullable = false, columnDefinition = "BLOB")
+    private byte[] signature;
+
     @ManyToMany(fetch = FetchType.LAZY, mappedBy = "files", cascade = CascadeType.REMOVE)
     private List<User> collaborators = new ArrayList<>();
 
@@ -97,6 +100,14 @@ public class File {
 
     public void removeCollaborator(User user) {
         this.collaborators.remove(user);
+    }
+
+    public void setSignature(byte[] signature) {
+        this.signature = signature;
+    }
+
+    public byte[] getSignature() {
+        return signature;
     }
 
     @Override

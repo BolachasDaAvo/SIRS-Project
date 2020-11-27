@@ -4,6 +4,7 @@ package sirs.grpc;
 message UploadRequest {
     string name = 1;
     bytes file = 2;
+    bytes signature = 3;
 }
 
 message UploadResponse {
@@ -15,6 +16,8 @@ message DownloadRequest {
 
 message DownloadResponse {
     bytes file = 1;
+    bytes signature = 2;
+    bytes certificate = 3;
 }
 
 message RegisterRequest {

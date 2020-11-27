@@ -10,6 +10,8 @@ import java.io.*;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
+import java.security.*;
+import java.security.cert.*;
 import java.util.Base64;
 
 import io.grpc.netty.GrpcSslContexts;
@@ -55,26 +57,55 @@ public class ClientFrontend {
         this.stub = this.stub.withCallCredentials(new AuthCreadentials(tokenResponse.getToken()));
     }
 
-    public void upload(String filename) throws FileNotFoundException, IOException {
+    public void upload(String filename, byte[] signature) throws FileNotFoundException, IOException {
         UploadRequest.Builder request = UploadRequest.newBuilder().setName(filename);
         File file = new File(filename);
         FileInputStream fis = new FileInputStream(file);
         ByteString bytes = ByteString.readFrom(fis);
+        ByteString sig = ByteString.copyFrom(signature);
         fis.close();
 
         request.setFile(bytes);
+        request.setSignature(sig);
 
         stub.upload(request.build());
     }
 
-    public void download(String filename) throws FileNotFoundException, IOException {
+    public boolean download(String filename) throws GeneralSecurityException, FileNotFoundException, IOException {
         DownloadRequest request = DownloadRequest.newBuilder().setName(filename).build();
         DownloadResponse response = stub.download(request);
-        FileOutputStream fos = new FileOutputStream(filename);
         ByteString bytes = response.getFile();
+        ByteString signature = response.getSignature();
+        ByteString certificate = response.getCertificate();
 
-        bytes.writeTo(fos);
-        fos.close();
+        // Verify signature
+        byte[] fileBytes = new byte[bytes.size()];
+        bytes.copyTo(fileBytes, 0);
+
+        byte[] sigBytes = new byte[signature.size()];
+        signature.copyTo(sigBytes, 0);
+
+        byte[] certBytes = new byte[certificate.size()];
+        certificate.copyTo(certBytes, 0);
+
+        if (verifySignature(fileBytes, certBytes, sigBytes)) {
+            FileOutputStream fos = new FileOutputStream(filename);
+            bytes.writeTo(fos);
+            fos.close();
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private boolean verifySignature(byte[] file, byte[] cert, byte[] signature) throws GeneralSecurityException, CertificateException {
+        X509Certificate certificate = (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(new ByteArrayInputStream(cert));
+
+        Signature sig = Signature.getInstance("SHA256withRSA");
+        sig.initVerify(certificate);
+        sig.update(file);
+
+        return sig.verify(signature);
     }
 
     public void close() {

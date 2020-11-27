@@ -64,11 +64,17 @@ public class ClientLogic {
             fileKey = this.readKey(fileName + ".key");
         }
 
+        // Encrypt the file
         String encryptedFile = fileName + ".aes";
         this.transform(fileName, encryptedFile, fileKey, Cipher.ENCRYPT_MODE);
 
-        this.frontend.upload(encryptedFile);
+        // Sign the file
+        PrivateKey signKey = readPrivateKey("keys/key_pkcs8.key");
+        byte[] signature = sign(encryptedFile, signKey);
+
+        this.frontend.upload(encryptedFile, signature);
         new File(fileName).delete();
+        System.out.println("File uploaded");
     }
 
     public void download(String fileName) throws GeneralSecurityException, IOException {
@@ -78,7 +84,10 @@ public class ClientLogic {
         }
         Key fileKey = this.readKey(fileName + ".key");
         String encryptedFile = fileName + ".aes";
-        this.frontend.download(encryptedFile);
+        if(this.frontend.download(encryptedFile))
+            System.out.println("Signature verified");
+        else
+            System.out.println("File was tampered. Unlocked local version instead");
 
         this.transform(encryptedFile, fileName, fileKey, Cipher.DECRYPT_MODE);
     }
@@ -113,6 +122,15 @@ public class ClientLogic {
         byte[] outputBytes = cipher.doFinal(inputBytes);
 
         Files.write(new File(outputFile).toPath(), outputBytes);
+    }
+
+    private byte[] sign(String fileName, PrivateKey key) throws IOException, GeneralSecurityException {
+        byte[] inputBytes = Files.readAllBytes(new File(fileName).toPath());
+        Signature signature = Signature.getInstance("SHA256withRSA");
+        signature.initSign(key);
+        signature.update(inputBytes);
+
+        return signature.sign();
     }
 
     public void close() {

@@ -16,6 +16,7 @@ import sirs.server.service.InviteService;
 import sirs.server.service.UserService;
 
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.FileInputStream;
 
 import sirs.server.domain.File;
@@ -35,23 +36,14 @@ public class ServerImpl extends RemoteImplBase {
     @Autowired
     private AuthenticationService authenticationService;
 
-    private void writeFile(ByteString bytes, String path) {
-        try {
-            FileOutputStream fos = new FileOutputStream(path);
-            bytes.writeTo(fos);
-        } catch (Exception e) {
-            System.out.println("Failed writing file");
-        }
+    private void writeFile(ByteString bytes, String path) throws IOException {
+        FileOutputStream fos = new FileOutputStream(path);
+        bytes.writeTo(fos);
     }
 
-    private ByteString readFile(String path) {
-        try {
-            FileInputStream fis = new FileInputStream(path);
-            return ByteString.readFrom(fis);
-        } catch (Exception e) {
-            System.out.println("Failed reading from file");
-        }
-        return null;
+    private ByteString readFile(String path) throws IOException {
+        FileInputStream fis = new FileInputStream(path);
+        return ByteString.readFrom(fis);
     }
 
     @Override
@@ -63,17 +55,25 @@ public class ServerImpl extends RemoteImplBase {
         }
         // Construct path
         String filename = request.getName();
+        ByteString sig = request.getSignature();
+        byte[] sigBytes = new byte[sig.size()];
+        sig.copyTo(sigBytes, 0);
         String filePath = "./users/" + userId + "/" + filename;
 
         // Check if file already exists
         File file = this.fileService.getFileByPath(filePath);
         if (file == null)
-            fileService.createFile(userId, filename, filePath);
+            fileService.createFile(userId, filename, filePath, sigBytes);
         else {
-            fileService.updateVersion(filePath);
+            fileService.updateFile(filePath, sigBytes, userId);
         }
 
-        writeFile(request.getFile(), filePath);
+        try {
+            writeFile(request.getFile(), filePath);
+        } catch (IOException e) {
+            responseObserver.onError(Status.UNKNOWN.withDescription("Failed writing file").asRuntimeException());
+            return;
+        }
 
         final UploadResponse response = UploadResponse.getDefaultInstance();
         responseObserver.onNext(response);
@@ -96,11 +96,22 @@ public class ServerImpl extends RemoteImplBase {
 
         DownloadResponse.Builder builder = DownloadResponse.newBuilder();
 
-        // TODO: Test file existence
-        // TODO: Implement gRPC exceptions
         String filePath = file.getPath();
-        ByteString bytes = readFile(filePath);
+        ByteString bytes;
+        byte[] sigBytes = file.getSignature();
+        ByteString sig = ByteString.copyFrom(sigBytes);
+        User modifier = file.getLastModifier();
+        byte[] certBytes = modifier.getCertificate();
+        ByteString cert = ByteString.copyFrom(certBytes);
+        try {
+            bytes = readFile(filePath);
+        } catch(IOException e) {
+            responseObserver.onError(Status.UNKNOWN.withDescription("Failed reading file").asRuntimeException());
+            return;
+        }
         builder.setFile(bytes);
+        builder.setSignature(sig);
+        builder.setCertificate(cert);
 
         responseObserver.onNext(builder.build());
         responseObserver.onCompleted();
@@ -117,9 +128,9 @@ public class ServerImpl extends RemoteImplBase {
         }
 
         // Create user directory
-        java.io.File directory = new java.io.File("users/" + user.getId());
+        java.io.File directory = new java.io.File("./users/" + user.getId() +"/");
         if (!directory.exists()) {
-            directory.mkdir();
+            directory.mkdirs();
         }
 
         RegisterResponse registerResponse = RegisterResponse.newBuilder().build();
