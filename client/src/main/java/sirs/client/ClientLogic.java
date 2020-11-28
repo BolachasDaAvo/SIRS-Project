@@ -15,6 +15,7 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.List;
 
 public class ClientLogic {
 
@@ -37,8 +38,12 @@ public class ClientLogic {
     public void login(String username, String privateKeyPath) {
         try {
             PrivateKey privateKey = this.readPrivateKey(privateKeyPath);
-            this.frontend.login(username, privateKey);
+            List<String> invites = this.frontend.login(username, privateKey);
             System.out.println("User logged in successfully");
+
+            for (String invite : invites) {
+                System.out.println("You have been invited to edit " + invite + ".");
+            }
         } catch (StatusRuntimeException | IOException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | InvalidKeySpecException | IllegalBlockSizeException | BadPaddingException e) {
             System.out.println("Unable to login: " + e.getMessage());
         }
@@ -109,6 +114,19 @@ public class ClientLogic {
         String encryptedFile = fileName + ".aes";
         this.frontend.invite(username, encryptedFile, keyBytes);
         System.out.println("Invite sent");
+    }
+
+    public void accept(String fileName) throws GeneralSecurityException, FileNotFoundException, IOException {
+        byte[] encryptedKeyBytes = this.frontend.accept(fileName + ".aes");
+        PrivateKey key = readPrivateKey("keys/key_pkcs8.key");
+        Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+        cipher.init(Cipher.DECRYPT_MODE, key);
+        byte[] keyBytes = cipher.doFinal(encryptedKeyBytes);
+
+        FileOutputStream fos = new FileOutputStream(fileName + ".key");
+        fos.write(keyBytes);
+        fos.close();
+        System.out.println("Invite accepted");
     }
 
     private Key generateKey(String keyPath) throws GeneralSecurityException, FileNotFoundException, IOException {

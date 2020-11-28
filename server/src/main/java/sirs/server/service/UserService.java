@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import sirs.server.domain.User;
+import sirs.server.domain.File;
+import sirs.server.domain.Invite;
 import sirs.server.repository.InviteRepository;
 import sirs.server.repository.UserRepository;
 
@@ -49,6 +51,17 @@ public class UserService {
         User user = userRepository.findById(id).orElseThrow();
         user.setUsername(username);
         return user;
+    }
+
+    @Retryable(value = {SQLException.class}, backoff = @Backoff(delay = 5000))
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
+    public void acceptInvite(int inviteId) {
+        Invite invite = inviteRepository.findById(inviteId).orElseThrow();
+        User user = invite.getUser();
+        File file = invite.getFile();
+        user.addFile(file);
+        file.addCollaborator(user);
+        user.removeInvite(invite);
     }
 
     @Retryable(value = {SQLException.class}, backoff = @Backoff(delay = 5000))

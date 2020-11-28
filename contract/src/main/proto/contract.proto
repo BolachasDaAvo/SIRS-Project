@@ -43,6 +43,7 @@ message TokenRequest {
 
 message TokenResponse {
     string token = 1;
+    repeated string invite = 2;
 }
 
 message ShareRequest {
@@ -62,6 +63,14 @@ message InviteRequest {
 message InviteResponse {
 }
 
+message AcceptRequest {
+    string file = 1;
+}
+
+message AcceptResponse {
+    bytes key = 1;
+}
+
 service Remote {
     rpc upload(UploadRequest) returns (UploadResponse);
     rpc Download(DownloadRequest) returns (DownloadResponse);
@@ -70,4 +79,5 @@ service Remote {
     rpc GetToken(TokenRequest) returns (TokenResponse);
     rpc Share(ShareRequest) returns (ShareResponse);
     rpc Invite(InviteRequest) returns (InviteResponse);
+    rpc Accept(AcceptRequest) returns (AcceptResponse);
 }

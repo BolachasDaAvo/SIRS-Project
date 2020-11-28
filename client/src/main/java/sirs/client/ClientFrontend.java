@@ -13,6 +13,7 @@ import java.security.PrivateKey;
 import java.security.*;
 import java.security.cert.*;
 import java.util.Base64;
+import java.util.List;
 
 import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NettyChannelBuilder;
@@ -37,7 +38,7 @@ public class ClientFrontend {
         stub.register(request);
     }
 
-    public void login(String username, PrivateKey privateKey) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, UnsupportedEncodingException {
+    public List<String> login(String username, PrivateKey privateKey) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, UnsupportedEncodingException {
 
         // Request number
         NumberRequest numberRequest = NumberRequest.newBuilder().setUsername(username).build();
@@ -55,6 +56,8 @@ public class ClientFrontend {
 
         // Set token
         this.stub = this.stub.withCallCredentials(new AuthCreadentials(tokenResponse.getToken()));
+
+        return tokenResponse.getInviteList();
     }
 
     public void upload(String filename, byte[] signature) throws FileNotFoundException, IOException {
@@ -115,6 +118,16 @@ public class ClientFrontend {
         request.setFile(file);
         request.setKey(key);
         stub.invite(request.build());
+    }
+
+    public byte[] accept(String fileName) {
+        AcceptRequest request = AcceptRequest.newBuilder().setFile(fileName).build();
+        AcceptResponse response = stub.accept(request);
+        ByteString encryptedKey = response.getKey();
+        byte[] encryptedKeyBytes = new byte[encryptedKey.size()];
+        encryptedKey.copyTo(encryptedKeyBytes, 0);
+
+        return encryptedKeyBytes;
     }
 
     private boolean verifySignature(byte[] file, byte[] cert, byte[] signature) throws GeneralSecurityException, CertificateException {

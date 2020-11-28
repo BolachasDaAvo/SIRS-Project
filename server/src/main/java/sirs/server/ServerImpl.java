@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.FileInputStream;
 
 import sirs.server.domain.File;
+import sirs.server.domain.Invite;
 
 @Component
 public class ServerImpl extends RemoteImplBase {
@@ -158,6 +159,18 @@ public class ServerImpl extends RemoteImplBase {
         }
 
         User invited = userService.getUserByUsername(request.getUser());
+        if (fileService.getFileByUser(fileName, invited.getId()) != null) {
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("User can already edit the file.").asRuntimeException());
+            return;
+        }
+
+        for (Invite invite : invited.getPendingInvites()) {
+            if (invite.getFile().getId() == file.getId()) {
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("User has already been invited to edit that file.").asRuntimeException());
+                return;
+            }
+        }
+
         ByteString key = request.getKey();
         byte[] keyBytes = new byte[key.size()];
         key.copyTo(keyBytes, 0);
@@ -165,6 +178,26 @@ public class ServerImpl extends RemoteImplBase {
         inviteService.createInvite(invited.getId(), file.getId(), keyBytes);
 
         InviteResponse response = InviteResponse.newBuilder().build();
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void accept(AcceptRequest request, StreamObserver<AcceptResponse> responseObserver) {
+        Integer userId = AuthInterceptor.USER_ID.get();
+        if (userId == -1) {
+            responseObserver.onError(Status.UNAUTHENTICATED.withDescription("Accept endpoint is for authenticated users only.").asRuntimeException());
+            return;
+        }
+        Invite invite = inviteService.getInviteByUser(request.getFile(), userId);
+        if (invite == null) {
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("User has not been invited to edit this file.").asRuntimeException());
+            return;
+        }
+        userService.acceptInvite(invite.getId());
+        ByteString fileKey = ByteString.copyFrom(invite.getFileKey());
+
+        AcceptResponse response = AcceptResponse.newBuilder().setKey(fileKey).build();
         responseObserver.onNext(response);
         responseObserver.onCompleted();
     }
@@ -202,8 +235,15 @@ public class ServerImpl extends RemoteImplBase {
     public void getToken(TokenRequest request, StreamObserver<TokenResponse> responseObserver) {
         try {
             String token = this.authenticationService.getToken(request.getUsername(), request.getNumber().toByteArray());
-            TokenResponse tokenResponse = TokenResponse.newBuilder().setToken(token).build();
-            responseObserver.onNext(tokenResponse);
+            TokenResponse.Builder tokenResponse = TokenResponse.newBuilder();
+            User user = userService.getUserByUsername(request.getUsername());
+
+            for (Invite invite : user.getPendingInvites()) {
+                tokenResponse.addInvite(invite.getFile().getName());
+            }
+
+            tokenResponse.setToken(token);
+            responseObserver.onNext(tokenResponse.build());
             responseObserver.onCompleted();
         } catch (AuthenticationException e) {
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());

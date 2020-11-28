@@ -22,7 +22,7 @@ public class User {
     /* Cascade ensure that when user is deleted all pending invites are deleted
        Orphan removal ensures that when invite is removed from list, it is deleted in the database
     */
-    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE, orphanRemoval = true)
+    @OneToMany(mappedBy = "user", fetch = FetchType.EAGER, cascade = CascadeType.REMOVE, orphanRemoval = true)
     private List<Invite> pendingInvites = new ArrayList<Invite>();
 
     @ManyToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
@@ -91,6 +91,19 @@ public class User {
             }
         }
         return null;
+    }
+
+    public Invite getInviteByFileName(String fileName) {
+        for (Invite invite : pendingInvites) {
+            if (invite.getFile().getName().equals(fileName)) {
+                return invite;
+            }
+        }
+        return null;
+    }
+
+    public void removeInvite(Invite invite) {
+        pendingInvites.remove(invite);
     }
 
     @Override
