@@ -2,10 +2,12 @@ package sirs.client;
 
 import javax.net.ssl.SSLException;
 import java.util.Scanner;
+import java.io.IOException;
+import org.json.simple.parser.ParseException;
 
 public class ClientApp {
 
-    public static void main(String[] args) throws SSLException {
+    public static void main(String[] args) throws ParseException, IOException, SSLException {
         Scanner sc = new Scanner(System.in);
 
         String host = "localhost";
@@ -60,6 +62,13 @@ public class ClientApp {
                             System.out.println("Invalid command");
                         else
                             logic.accept(command[1]);
+                        break;
+
+                    case "unlock":
+                        if (command.length != 2)
+                            System.out.print("Invalid command");
+                        else
+                            logic.unlock(command[1]);
                         break;
 
                     case "exit":

@@ -24,7 +24,8 @@ public class FileService {
 
     @Retryable(value = {SQLException.class}, backoff = @Backoff(delay = 5000))
     @Transactional(isolation = Isolation.REPEATABLE_READ)
-    public void createFile(int ownerId, String fileName, String path, byte[] signature) {
+    public void createFile(int ownerId, String fileName, byte[] signature) {
+        String path = "./users/" + ownerId + "/" + fileName;
         User owner = userRepository.findById(ownerId).orElseThrow();
         File file = new File(1, owner, fileName, path);
         file.setOwner(owner);

@@ -25,6 +25,7 @@ import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.net.ssl.SSLException;
+import org.json.simple.*;
 
 public class ClientFrontend {
     final ManagedChannel channel;
@@ -62,7 +63,7 @@ public class ClientFrontend {
         return tokenResponse.getInviteList();
     }
 
-    public void upload(String filename, byte[] signature) throws FileNotFoundException, IOException {
+    public int upload(String filename, byte[] signature, String owner) throws FileNotFoundException, IOException {
         String name = Paths.get(filename).normalize().toString();
         UploadRequest.Builder request = UploadRequest.newBuilder().setName(name);
         FileInputStream fis = new FileInputStream("./files/" + filename);
@@ -72,17 +73,21 @@ public class ClientFrontend {
 
         request.setFile(bytes);
         request.setSignature(sig);
+        request.setOwner(owner);
 
-        stub.upload(request.build());
+        UploadResponse response = stub.upload(request.build());
+        return response.getVersion();
     }
 
-    public String download(String filename) throws GeneralSecurityException, FileNotFoundException, IOException {
+    public JSONObject download(String filename) throws GeneralSecurityException, FileNotFoundException, IOException {
         DownloadRequest request = DownloadRequest.newBuilder().setName(filename).build();
         DownloadResponse response = stub.download(request);
         ByteString bytes = response.getFile();
         ByteString signature = response.getSignature();
         ByteString certificate = response.getCertificate();
         String lastModifier = response.getLastModifier();
+        int version = response.getVersion();
+        String owner = response.getOwner();
 
         // Verify signature
         byte[] fileBytes = new byte[bytes.size()];
@@ -98,9 +103,14 @@ public class ClientFrontend {
             FileOutputStream fos = new FileOutputStream("./files/" + filename);
             bytes.writeTo(fos);
             fos.close();
-            return lastModifier;
+            JSONObject file = new JSONObject();
+            file.put("owner", owner);
+            file.put("version", version);
+            file.put("lastModifier", lastModifier);
+
+            return file;
         } else {
-            return "";
+            return null;
         }
     }
 

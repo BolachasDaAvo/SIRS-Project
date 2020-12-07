@@ -5,9 +5,11 @@ message UploadRequest {
     string name = 1;
     bytes file = 2;
     bytes signature = 3;
+    string owner = 4;
 }
 
 message UploadResponse {
+    int32 version = 1;
 }
 
 message DownloadRequest {
@@ -19,6 +21,8 @@ message DownloadResponse {
     bytes signature = 2;
     bytes certificate = 3;
     string lastModifier = 4;
+    int32 version = 5;
+    string owner = 6;
 }
 
 message RegisterRequest {

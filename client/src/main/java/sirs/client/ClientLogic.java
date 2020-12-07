@@ -9,6 +9,7 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.net.ssl.SSLException;
 import java.io.*;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -16,14 +17,23 @@ import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.List;
+import org.json.simple.*;
+import org.json.simple.parser.*;
 
 public class ClientLogic {
 
     ClientFrontend frontend;
     String username = "";
+    JSONObject cache;
 
-    public ClientLogic(String host, int port) throws SSLException {
+    public ClientLogic(String host, int port) throws SSLException, IOException, ParseException {
         this.frontend = new ClientFrontend(host, port);
+        try {
+            FileInputStream fis = new FileInputStream("fileCache.json");
+            this.cache = (JSONObject) new JSONParser().parse(new FileReader("fileCache.json"));
+        } catch (FileNotFoundException e) {
+            this.cache = new JSONObject();
+        }
     }
 
     public void register(String username, String certificatePath) {
@@ -64,8 +74,39 @@ public class ClientLogic {
         return privKey;
     }
 
+    public void unlock(String fileName) throws GeneralSecurityException, IOException {
+        String encryptedFile = "./files/" + fileName + ".aes";
+        Key fileKey;
+        JSONObject file = (JSONObject) this.cache.get(fileName);
+        String lastModifier;
+
+        if (file == null) {
+            System.out.println("Unable to unlock: File not in cache");
+            return;
+        } else {
+            lastModifier = (String) file.get("lastModifier");
+        }
+
+        if (!new File(fileName + ".key").exists()) {
+            System.out.println("Unable to unlock: No key present");
+            return;
+        } else {
+            fileKey = this.readKey(fileName + ".key");
+        }
+
+        byte[] iv = usernameToIV(lastModifier);
+        try {
+            this.transform(encryptedFile, fileName, fileKey, Cipher.DECRYPT_MODE, iv);
+        } catch (NoSuchFileException e) {
+            System.out.println("Unable to unlock: " + e.getMessage());
+            return;
+        }
+        System.out.println("File unlocked");
+    }
+
     public void upload(String fileName) throws GeneralSecurityException, IOException {
         Key fileKey;
+        JSONObject file = (JSONObject) this.cache.get(fileName);
 
         if (this.username.equals("")) {
             System.out.println("User not logged in");
@@ -86,18 +127,46 @@ public class ClientLogic {
         // Encrypt the file
         String encryptedFile = "./files/" + fileName + ".aes";
         byte[] iv = usernameToIV(this.username);
-        this.transform(fileName, encryptedFile, fileKey, Cipher.ENCRYPT_MODE, iv);
+        try {
+            this.transform(fileName, encryptedFile, fileKey, Cipher.ENCRYPT_MODE, iv);
+        } catch (NoSuchFileException e) {
+            System.out.println("Unable to upload: " + e.getMessage());
+            return;
+        }
 
         // Sign the file
         PrivateKey signKey = readPrivateKey("keys/key_pkcs8.key");
         byte[] signature = sign(encryptedFile, signKey);
 
+        String owner;
+        // Get file owner
+        if (file == null) {
+            owner = this.username;
+        } else {
+            owner = (String) file.get("owner");
+        }
+
+        int version;
         try {
-            this.frontend.upload(fileName + ".aes", signature);
+            version = this.frontend.upload(fileName + ".aes", signature, owner);
         } catch(Exception e) {
             System.out.println("Unable to upload: " + e.getMessage());
             return;
         }
+
+        // Update cache
+        if (file == null) {
+            file = new JSONObject();
+            file.put("owner", this.username);
+            file.put("version", 1);
+            file.put("lastModifier", this.username);
+        } else {
+            file.put("version", version);
+            file.put("lastModifier", this.username);
+        }
+        this.cache.put(fileName, file);
+
+        new File(fileName).delete();
         System.out.println("File uploaded");
     }
 
@@ -114,17 +183,21 @@ public class ClientLogic {
 
         Key fileKey = this.readKey(fileName + ".key");
         String encryptedFile = fileName + ".aes";
-        String lastModifier = "";
+        JSONObject file;
         try {
-            lastModifier = this.frontend.download(encryptedFile);
+            file = this.frontend.download(encryptedFile);
         } catch (Exception e) {
             System.out.println("Unable to download: " + e.getMessage());
             return;
         }
-        if(!lastModifier.equals("")) {
+        if(file != null) {
+            String lastModifier = (String) file.get("lastModifier");
             System.out.println("Signature verified");
             byte[] iv = usernameToIV(lastModifier);
             this.transform("./files/" + encryptedFile, fileName, fileKey, Cipher.DECRYPT_MODE, iv);
+
+            // Update cache
+            this.cache.put(fileName, file);
         } else
             System.out.println("File was tampered. Try again later or upload your own version");
 
@@ -229,7 +302,9 @@ public class ClientLogic {
         return holder.substring(0, 16).getBytes();
     }
 
-    public void close() {
+    public void close() throws IOException {
+        FileOutputStream fos = new FileOutputStream("fileCache.json");
+        fos.write(this.cache.toString().getBytes());
         this.frontend.close();
     }
 }

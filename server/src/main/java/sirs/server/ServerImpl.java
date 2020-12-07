@@ -55,16 +55,17 @@ public class ServerImpl extends RemoteImplBase {
             return;
         }
         // Construct path
+        User owner = userService.getUserByUsername(request.getOwner());
         String filename = request.getName();
         ByteString sig = request.getSignature();
         byte[] sigBytes = new byte[sig.size()];
         sig.copyTo(sigBytes, 0);
-        String filePath = "./users/" + userId + "/" + filename;
+        String filePath = "./users/" + owner.getId() + "/" + filename;
 
         // Check if file already exists
         File file = this.fileService.getFileByPath(filePath);
         if (file == null)
-            fileService.createFile(userId, filename, filePath, sigBytes);
+            fileService.createFile(userId, filename, sigBytes);
         else {
             fileService.updateFile(filePath, sigBytes, userId);
         }
@@ -76,7 +77,8 @@ public class ServerImpl extends RemoteImplBase {
             return;
         }
 
-        final UploadResponse response = UploadResponse.getDefaultInstance();
+        file = this.fileService.getFileByPath(filePath);
+        final UploadResponse response = UploadResponse.newBuilder().setVersion(file.getVersion()).build();
         responseObserver.onNext(response);
         responseObserver.onCompleted();
     }
@@ -102,6 +104,8 @@ public class ServerImpl extends RemoteImplBase {
         byte[] sigBytes = file.getSignature();
         ByteString sig = ByteString.copyFrom(sigBytes);
         User modifier = file.getLastModifier();
+        int version = file.getVersion();
+        User owner = file.getOwner(); 
         byte[] certBytes = modifier.getCertificate();
         ByteString cert = ByteString.copyFrom(certBytes);
         try {
@@ -114,6 +118,8 @@ public class ServerImpl extends RemoteImplBase {
         builder.setSignature(sig);
         builder.setCertificate(cert);
         builder.setLastModifier(modifier.getUsername());
+        builder.setVersion(version);
+        builder.setOwner(owner.getUsername());
 
         responseObserver.onNext(builder.build());
         responseObserver.onCompleted();
