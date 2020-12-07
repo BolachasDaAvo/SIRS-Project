@@ -92,8 +92,12 @@ public class ClientLogic {
         PrivateKey signKey = readPrivateKey("keys/key_pkcs8.key");
         byte[] signature = sign(encryptedFile, signKey);
 
-        this.frontend.upload(fileName + ".aes", signature);
-        new File(fileName).delete();
+        try {
+            this.frontend.upload(fileName + ".aes", signature);
+        } catch(Exception e) {
+            System.out.println("Unable to upload: " + e.getMessage());
+            return;
+        }
         System.out.println("File uploaded");
     }
 
@@ -110,7 +114,13 @@ public class ClientLogic {
 
         Key fileKey = this.readKey(fileName + ".key");
         String encryptedFile = fileName + ".aes";
-        String lastModifier = this.frontend.download(encryptedFile);
+        String lastModifier = "";
+        try {
+            lastModifier = this.frontend.download(encryptedFile);
+        } catch (Exception e) {
+            System.out.println("Unable to download: " + e.getMessage());
+            return;
+        }
         if(!lastModifier.equals("")) {
             System.out.println("Signature verified");
             byte[] iv = usernameToIV(lastModifier);
@@ -121,7 +131,13 @@ public class ClientLogic {
     }
 
     public void invite(String username, String fileName) throws GeneralSecurityException, IOException {
-        byte[] certBytes = this.frontend.share(username);
+        byte[] certBytes;
+        try {
+            certBytes = this.frontend.share(username);
+        } catch (Exception e) {
+            System.out.println("Unable to get users certificate: " + e.getMessage());
+            return;
+        }
         X509Certificate certificate = (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(new ByteArrayInputStream(certBytes));
 
         if (!new File(fileName + ".key").exists()) {
@@ -135,12 +151,23 @@ public class ClientLogic {
         byte[] keyBytes = cipher.doFinal(fileKey);
 
         String encryptedFile = fileName + ".aes";
-        this.frontend.invite(username, encryptedFile, keyBytes);
+        try {
+            this.frontend.invite(username, encryptedFile, keyBytes);
+        } catch (Exception e) {
+            System.out.println("Unable to send invite: " + e.getMessage());
+            return;
+        }
         System.out.println("Invite sent");
     }
 
     public void accept(String fileName) throws GeneralSecurityException, FileNotFoundException, IOException {
-        byte[] encryptedKeyBytes = this.frontend.accept(fileName + ".aes");
+        byte[] encryptedKeyBytes;
+        try {
+            encryptedKeyBytes = this.frontend.accept(fileName + ".aes");
+        } catch (Exception e) {
+            System.out.println("Unable to accept invite: " + e.getMessage());
+            return;
+        }
         PrivateKey key = readPrivateKey("keys/key_pkcs8.key");
         Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
         cipher.init(Cipher.DECRYPT_MODE, key);
