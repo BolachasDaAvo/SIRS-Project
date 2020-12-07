@@ -55,17 +55,6 @@ public class UserService {
 
     @Retryable(value = {SQLException.class}, backoff = @Backoff(delay = 5000))
     @Transactional(isolation = Isolation.REPEATABLE_READ)
-    public void acceptInvite(int inviteId) {
-        Invite invite = inviteRepository.findById(inviteId).orElseThrow();
-        User user = invite.getUser();
-        File file = invite.getFile();
-        user.addFile(file);
-        file.addCollaborator(user);
-        user.removeInvite(invite);
-    }
-
-    @Retryable(value = {SQLException.class}, backoff = @Backoff(delay = 5000))
-    @Transactional(isolation = Isolation.REPEATABLE_READ)
     public User updateUserCertificate(int id, byte[] certificate) {
         User user = userRepository.findById(id).orElseThrow();
         user.setCertificate(certificate);

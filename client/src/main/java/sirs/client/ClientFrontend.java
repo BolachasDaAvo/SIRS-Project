@@ -14,6 +14,8 @@ import java.security.*;
 import java.security.cert.*;
 import java.util.Base64;
 import java.util.List;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NettyChannelBuilder;
@@ -61,9 +63,9 @@ public class ClientFrontend {
     }
 
     public void upload(String filename, byte[] signature) throws FileNotFoundException, IOException {
-        UploadRequest.Builder request = UploadRequest.newBuilder().setName(filename);
-        File file = new File(filename);
-        FileInputStream fis = new FileInputStream(file);
+        String name = Paths.get(filename).normalize().toString();
+        UploadRequest.Builder request = UploadRequest.newBuilder().setName(name);
+        FileInputStream fis = new FileInputStream("./files/" + filename);
         ByteString bytes = ByteString.readFrom(fis);
         ByteString sig = ByteString.copyFrom(signature);
         fis.close();
@@ -74,12 +76,13 @@ public class ClientFrontend {
         stub.upload(request.build());
     }
 
-    public boolean download(String filename) throws GeneralSecurityException, FileNotFoundException, IOException {
+    public String download(String filename) throws GeneralSecurityException, FileNotFoundException, IOException {
         DownloadRequest request = DownloadRequest.newBuilder().setName(filename).build();
         DownloadResponse response = stub.download(request);
         ByteString bytes = response.getFile();
         ByteString signature = response.getSignature();
         ByteString certificate = response.getCertificate();
+        String lastModifier = response.getLastModifier();
 
         // Verify signature
         byte[] fileBytes = new byte[bytes.size()];
@@ -92,12 +95,12 @@ public class ClientFrontend {
         certificate.copyTo(certBytes, 0);
 
         if (verifySignature(fileBytes, certBytes, sigBytes)) {
-            FileOutputStream fos = new FileOutputStream(filename);
+            FileOutputStream fos = new FileOutputStream("./files/" + filename);
             bytes.writeTo(fos);
             fos.close();
-            return true;
+            return lastModifier;
         } else {
-            return false;
+            return "";
         }
     }
 

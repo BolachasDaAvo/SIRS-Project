@@ -36,6 +36,9 @@ public class File {
     @ManyToMany(fetch = FetchType.LAZY, mappedBy = "files", cascade = CascadeType.REMOVE)
     private List<User> collaborators = new ArrayList<>();
 
+    @OneToMany(mappedBy = "file", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    private List<Invite> pendingInvites = new ArrayList<Invite>();
+
     public File() {
     }
 
@@ -112,6 +115,10 @@ public class File {
 
     public void removeCollaborator(User user) {
         this.collaborators.remove(user);
+    }
+
+    public void removeInvite(Invite invite) {
+        this.pendingInvites.remove(invite);
     }
 
     public void setSignature(byte[] signature) {

@@ -57,6 +57,17 @@ public class InviteService {
 
     @Retryable(value = {SQLException.class}, backoff = @Backoff(delay = 5000))
     @Transactional(isolation = Isolation.REPEATABLE_READ)
+    public void acceptInvite(int inviteId) {
+        Invite invite = inviteRepository.findById(inviteId).orElseThrow();
+        User user = invite.getUser();
+        File file = invite.getFile();
+        invite.setAccepted(true);
+        user.addFile(file);
+        file.addCollaborator(user);
+    }
+
+    @Retryable(value = {SQLException.class}, backoff = @Backoff(delay = 5000))
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
     public void removeInvite(int inviteId) {
         inviteRepository.deleteById(inviteId);
     }

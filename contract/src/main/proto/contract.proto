@@ -18,6 +18,7 @@ message DownloadResponse {
     bytes file = 1;
     bytes signature = 2;
     bytes certificate = 3;
+    string lastModifier = 4;
 }
 
 message RegisterRequest {

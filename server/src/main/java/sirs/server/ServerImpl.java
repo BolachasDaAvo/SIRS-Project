@@ -113,6 +113,7 @@ public class ServerImpl extends RemoteImplBase {
         builder.setFile(bytes);
         builder.setSignature(sig);
         builder.setCertificate(cert);
+        builder.setLastModifier(modifier.getUsername());
 
         responseObserver.onNext(builder.build());
         responseObserver.onCompleted();
@@ -194,7 +195,7 @@ public class ServerImpl extends RemoteImplBase {
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("User has not been invited to edit this file.").asRuntimeException());
             return;
         }
-        userService.acceptInvite(invite.getId());
+        inviteService.acceptInvite(invite.getId());
         ByteString fileKey = ByteString.copyFrom(invite.getFileKey());
 
         AcceptResponse response = AcceptResponse.newBuilder().setKey(fileKey).build();
@@ -239,7 +240,8 @@ public class ServerImpl extends RemoteImplBase {
             User user = userService.getUserByUsername(request.getUsername());
 
             for (Invite invite : user.getPendingInvites()) {
-                tokenResponse.addInvite(invite.getFile().getName());
+                if (!invite.getAccepted())
+                    tokenResponse.addInvite(invite.getFile().getName());
             }
 
             tokenResponse.setToken(token);

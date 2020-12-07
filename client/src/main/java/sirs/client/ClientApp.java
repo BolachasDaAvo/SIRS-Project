@@ -1,52 +1,83 @@
 package sirs.client;
 
 import javax.net.ssl.SSLException;
+import java.util.Scanner;
 
 public class ClientApp {
 
     public static void main(String[] args) throws SSLException {
-        System.out.println("Hello World!");
+        Scanner sc = new Scanner(System.in);
 
         String host = "localhost";
         int port = 8443;
 
         ClientLogic logic = new ClientLogic(host, port);
+        String[] command;
 
-        try {
+        do {
+            System.out.print("> ");
+            command = sc.nextLine().split(" ");
+            try {
 
-            switch (args[0]) {
-                case "login":
-                    logic.login(args[1], "keys/key_pkcs8.key");
-                    break;
+                switch (command[0]) {
+                    case "login":
+                        if (command.length != 2)
+                            System.out.println("Invalid command");
+                        else
+                            logic.login(command[1], "keys/key_pkcs8.key");
+                        break;
 
-                case "download":
-                    logic.download(args[1]);
-                    break;
+                    case "download":
+                        if (command.length != 2)
+                            System.out.println("Invalid command");
+                        else
+                            logic.download(command[1]);
+                        break;
 
-                case "upload":
-                    logic.upload(args[1]);
-                    break;
+                    case "upload":
+                        if (command.length != 2)
+                            System.out.println("Invalid command");
+                        else
+                            logic.upload(command[1]);
+                        break;
 
-                case "invite":
-                    logic.invite(args[1], args[2]);
-                    break;
+                    case "invite":
+                        if (command.length != 3)
+                            System.out.println("Invalid command");
+                        else
+                            logic.invite(command[1], command[2]);
+                        break;
 
-                case "register":
-                    logic.register(args[1], "keys/cert.pem");
-                    break;
+                    case "register":
+                        if (command.length != 2)
+                            System.out.println("Invalid command");
+                        else
+                            logic.register(command[1], "keys/cert.pem");
+                        break;
+                    
+                    case "accept":
+                        if (command.length != 2)
+                            System.out.println("Invalid command");
+                        else
+                            logic.accept(command[1]);
+                        break;
 
-                default:
-                    System.out.println("Invalid command, try again");
+                    case "exit":
+                        break;
+
+                    default:
+                        System.out.println("Unknown command, try again");
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                logic.close();
+                return;
             }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            logic.close();
-            return;
-        }
+        } while (!command[0].equals("exit"));
 
 
         logic.close();
-        System.out.println("bye!");
+        System.out.println("Exiting...");
     }
 }
