@@ -10,7 +10,16 @@ import javax.net.ssl.SSLException;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
-import java.security.*;
+import java.security.KeyPair;
+import java.security.Key;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.GeneralSecurityException;
+import java.security.Signature;
+import java.security.KeyPairGenerator;
+import java.security.KeyFactory;
+import java.security.Security;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
@@ -19,66 +28,87 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.List;
 import org.json.simple.*;
 import org.json.simple.parser.*;
+import java.util.Scanner;
+import sirs.client.SecurityLogic;
+import org.apache.commons.lang3.tuple.Pair;
+import org.bouncycastle.operator.OperatorCreationException;
 
 public class ClientLogic {
 
     ClientFrontend frontend;
     String username = "";
+    char[] password;
     JSONObject cache;
 
-    public ClientLogic(String host, int port) throws SSLException, IOException, ParseException {
+    public ClientLogic(String host, int port) throws GeneralSecurityException, SSLException, IOException, ParseException {
         this.frontend = new ClientFrontend(host, port);
+
+        // Load file cache
         try {
-            FileInputStream fis = new FileInputStream("fileCache.json");
-            this.cache = (JSONObject) new JSONParser().parse(new FileReader("fileCache.json"));
+            FileInputStream fis = new FileInputStream(".fileCache.json");
+            this.cache = (JSONObject) new JSONParser().parse(new FileReader(".fileCache.json"));
+            fis.close();
         } catch (FileNotFoundException e) {
             this.cache = new JSONObject();
         }
     }
 
-    public void register(String username, String certificatePath) {
+    public void register(String username, String certificatePath, String privKey) throws OperatorCreationException, GeneralSecurityException, IOException {
+
+        // Username validation
+        for (char chr : username.toCharArray()) {
+            char c = Character.toUpperCase(chr);
+            if ((c < 'A' || c > 'Z') && (chr < '0' || chr > '9')) {
+                System.out.println("Unable to register: Invalid username");
+                return;
+            }
+        }
+
+        Pair<PrivateKey, Certificate> pair = SecurityLogic.generateCertificate();
+
+
         try {
-            ByteString certificate = ByteString.copyFrom(new FileInputStream(certificatePath).readAllBytes());
+            ByteString certificate = ByteString.copyFrom(pair.getRight().getEncoded());
             frontend.register(username, certificate);
             System.out.println("User registered successfully");
-        } catch (IOException | StatusRuntimeException e) {
+        } catch (StatusRuntimeException e) {
             System.out.println("Unable to register: " + e.getMessage());
         }
+
+        System.out.print("Set password:");
+        char[] newPassword = System.console().readPassword();
+        SecurityLogic.createKeystore(username, newPassword, pair.getLeft(), pair.getRight());
     }
 
-    public void login(String username, String privateKeyPath) {
+    public void login(String username) {
         try {
-            PrivateKey privateKey = this.readPrivateKey(privateKeyPath);
+            this.username = username;
+            System.out.print("Insert password:");
+            this.password = System.console().readPassword();
+            PrivateKey privateKey = (PrivateKey)  SecurityLogic.getKey(username, this.password, "auth");
             List<String> invites = this.frontend.login(username, privateKey);
             System.out.println("User logged in successfully");
-            this.username = username;
             
             for (String invite : invites) {
                 String filename = invite.substring(0, invite.lastIndexOf('.'));
                 System.out.println("You have been invited to edit " + filename);
             }
-        } catch (StatusRuntimeException | IOException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | InvalidKeySpecException | IllegalBlockSizeException | BadPaddingException e) {
+        } catch (StatusRuntimeException | IOException | GeneralSecurityException e) {
             System.out.println("Unable to login: " + e.getMessage());
         }
     }
 
-    private X509Certificate readX509Certificate(String certificatePath) throws FileNotFoundException, CertificateException {
-        FileInputStream is = new FileInputStream(certificatePath);
-        X509Certificate certificate = (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(is);
-        return certificate;
-    }
-
-    private PrivateKey readPrivateKey(String keyPath) throws NoSuchAlgorithmException, InvalidKeySpecException, IOException {
-        FileInputStream is = new FileInputStream(keyPath);
-        PrivateKey privKey = KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(is.readAllBytes()));
-        return privKey;
-    }
-
+    // Unlocks local file without having to contact the server
     public void unlock(String fileName) throws GeneralSecurityException, IOException {
         String encryptedFile = "./files/" + fileName + ".aes";
         Key fileKey;
         JSONObject file = (JSONObject) this.cache.get(fileName);
         String lastModifier;
+
+        if (this.username.equals("")) {
+            System.out.println("User not logged in");
+            return;
+        }
 
         if (file == null) {
             System.out.println("Unable to unlock: File not in cache");
@@ -87,16 +117,16 @@ public class ClientLogic {
             lastModifier = (String) file.get("lastModifier");
         }
 
-        if (!new File(fileName + ".key").exists()) {
-            System.out.println("Unable to unlock: No key present");
+        try {
+            fileKey = SecurityLogic.getKey(this.username, this.password, fileName);
+        } catch (GeneralSecurityException | IOException e) {
+            System.out.println("Unable to unlock: " + e.getMessage());
             return;
-        } else {
-            fileKey = this.readKey(fileName + ".key");
         }
 
-        byte[] iv = usernameToIV(lastModifier);
+        byte[] iv = SecurityLogic.usernameToIV(lastModifier);
         try {
-            this.transform(encryptedFile, fileName, fileKey, Cipher.DECRYPT_MODE, iv);
+            SecurityLogic.transform(encryptedFile, fileName, fileKey, Cipher.DECRYPT_MODE, iv);
         } catch (NoSuchFileException e) {
             System.out.println("Unable to unlock: " + e.getMessage());
             return;
@@ -107,16 +137,25 @@ public class ClientLogic {
     public void upload(String fileName) throws GeneralSecurityException, IOException {
         Key fileKey;
         JSONObject file = (JSONObject) this.cache.get(fileName);
+        String owner;
 
         if (this.username.equals("")) {
             System.out.println("User not logged in");
             return;
         }
 
-        if (!new File(fileName + ".key").exists()) {
-            fileKey = this.generateKey(fileName + ".key");
-        } else {
-            fileKey = this.readKey(fileName + ".key");
+        try {
+            // Get file owner and key
+            if (file == null) {
+                owner = this.username;
+                fileKey = SecurityLogic.generateAESKey(this.username, this.password, fileName);
+            } else {
+                owner = (String) file.get("owner");
+                fileKey = SecurityLogic.getKey(this.username, this.password, fileName);
+            }
+        } catch (GeneralSecurityException | IOException e) {
+            System.out.println("Unable to upload: " + e.getMessage());
+            return;
         }
 
         java.io.File directory = new java.io.File("./files/");
@@ -126,25 +165,17 @@ public class ClientLogic {
 
         // Encrypt the file
         String encryptedFile = "./files/" + fileName + ".aes";
-        byte[] iv = usernameToIV(this.username);
+        byte[] iv = SecurityLogic.usernameToIV(this.username);
         try {
-            this.transform(fileName, encryptedFile, fileKey, Cipher.ENCRYPT_MODE, iv);
+            SecurityLogic.transform(fileName, encryptedFile, fileKey, Cipher.ENCRYPT_MODE, iv);
         } catch (NoSuchFileException e) {
             System.out.println("Unable to upload: " + e.getMessage());
             return;
         }
 
         // Sign the file
-        PrivateKey signKey = readPrivateKey("keys/key_pkcs8.key");
-        byte[] signature = sign(encryptedFile, signKey);
-
-        String owner;
-        // Get file owner
-        if (file == null) {
-            owner = this.username;
-        } else {
-            owner = (String) file.get("owner");
-        }
+        PrivateKey signKey = (PrivateKey) SecurityLogic.getKey(this.username, this.password, "auth");
+        byte[] signature = SecurityLogic.sign(encryptedFile, signKey);
 
         int version;
         try {
@@ -171,8 +202,9 @@ public class ClientLogic {
     }
 
     public void download(String fileName) throws GeneralSecurityException, IOException {
-        if (!new File(fileName + ".key").exists()) {
-            System.out.println("No key found for file");
+
+        if (this.username.equals("")) {
+            System.out.println("User not logged in");
             return;
         }
 
@@ -181,7 +213,7 @@ public class ClientLogic {
             directory.mkdir();
         }
 
-        Key fileKey = this.readKey(fileName + ".key");
+        Key fileKey = SecurityLogic.getKey(this.username, this.password, fileName);
         String encryptedFile = fileName + ".aes";
         JSONObject file;
         try {
@@ -190,35 +222,44 @@ public class ClientLogic {
             System.out.println("Unable to download: " + e.getMessage());
             return;
         }
-        if(file != null) {
+        if (file != null) {
             String lastModifier = (String) file.get("lastModifier");
             System.out.println("Signature verified");
-            byte[] iv = usernameToIV(lastModifier);
-            this.transform("./files/" + encryptedFile, fileName, fileKey, Cipher.DECRYPT_MODE, iv);
+            byte[] iv = SecurityLogic.usernameToIV(lastModifier);
+            SecurityLogic.transform("./files/" + encryptedFile, fileName, fileKey, Cipher.DECRYPT_MODE, iv);
 
             // Update cache
             this.cache.put(fileName, file);
         } else
-            System.out.println("File was tampered. Try again later or upload your own version");
+            System.out.println("File was tampered. Try again later or unlock local version");
 
     }
 
+    // Invites user to edit file
     public void invite(String username, String fileName) throws GeneralSecurityException, IOException {
+
+        if (this.username.equals("")) {
+            System.out.println("User not logged in");
+            return;
+        }
+
         byte[] certBytes;
         try {
             certBytes = this.frontend.share(username);
         } catch (Exception e) {
-            System.out.println("Unable to get users certificate: " + e.getMessage());
+            System.out.println("Unable to get user's certificate: " + e.getMessage());
             return;
         }
         X509Certificate certificate = (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(new ByteArrayInputStream(certBytes));
 
-        if (!new File(fileName + ".key").exists()) {
-            System.out.println("No key found for file");
+        byte[] fileKey;
+        try {
+            fileKey = SecurityLogic.getKey(this.username, this.password, fileName).getEncoded();
+        } catch (GeneralSecurityException | IOException e) {
+            System.out.println("Unable to send invite: " + e.getMessage());
             return;
         }
 
-        byte[] fileKey = Files.readAllBytes(new File(fileName + ".key").toPath());
         Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
         cipher.init(Cipher.ENCRYPT_MODE, certificate);
         byte[] keyBytes = cipher.doFinal(fileKey);
@@ -233,7 +274,14 @@ public class ClientLogic {
         System.out.println("Invite sent");
     }
 
+    // Accepts invite to edit file
     public void accept(String fileName) throws GeneralSecurityException, FileNotFoundException, IOException {
+
+        if (this.username.equals("")) {
+            System.out.println("User not logged in");
+            return;
+        }
+
         byte[] encryptedKeyBytes;
         try {
             encryptedKeyBytes = this.frontend.accept(fileName + ".aes");
@@ -241,70 +289,25 @@ public class ClientLogic {
             System.out.println("Unable to accept invite: " + e.getMessage());
             return;
         }
-        PrivateKey key = readPrivateKey("keys/key_pkcs8.key");
+        PrivateKey privKey = (PrivateKey) SecurityLogic.getKey(this.username, this.password, "auth");
         Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-        cipher.init(Cipher.DECRYPT_MODE, key);
+        cipher.init(Cipher.DECRYPT_MODE, privKey);
         byte[] keyBytes = cipher.doFinal(encryptedKeyBytes);
+        Key key = new SecretKeySpec(keyBytes, 0, 16, "AES");
 
-        FileOutputStream fos = new FileOutputStream(fileName + ".key");
-        fos.write(keyBytes);
-        fos.close();
+        try {
+            SecurityLogic.saveKey(this.username, this.password, fileName, key);
+        } catch (GeneralSecurityException | IOException e) {
+            System.out.println("Unable to accept invite: " + e.getMessage());
+        }
         System.out.println("Invite accepted");
     }
 
-    private Key generateKey(String keyPath) throws GeneralSecurityException, FileNotFoundException, IOException {
-        KeyGenerator keyGen = KeyGenerator.getInstance("AES");
-        keyGen.init(128);
-        Key key = keyGen.generateKey();
-        byte[] keyBytes = key.getEncoded();
-
-        FileOutputStream fos = new FileOutputStream(keyPath);
-        fos.write(keyBytes);
+    public void close() throws IOException  {
+        FileOutputStream fos = new FileOutputStream(".fileCache.json");
+        fos.write(this.cache.toString().getBytes());
         fos.close();
 
-        return new SecretKeySpec(keyBytes, 0, 16, "AES");
-    }
-
-    private Key readKey(String keyPath) throws GeneralSecurityException, FileNotFoundException, IOException {
-        FileInputStream fis = new FileInputStream(keyPath);
-        byte[] keyBytes = new byte[fis.available()];
-        fis.read(keyBytes);
-        fis.close();
-
-        return new SecretKeySpec(keyBytes, 0, 16, "AES");
-    }
-
-    private void transform(String inputFile, String outputFile, Key key, int mode, byte[] iv) throws GeneralSecurityException, FileNotFoundException, IOException {
-        byte[] inputBytes = Files.readAllBytes(new File(inputFile).toPath());
-
-        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-        cipher.init(mode, key, new IvParameterSpec(iv));
-        byte[] outputBytes = cipher.doFinal(inputBytes);
-
-        Files.write(new File(outputFile).toPath(), outputBytes);
-    }
-
-    private byte[] sign(String fileName, PrivateKey key) throws IOException, GeneralSecurityException {
-        byte[] inputBytes = Files.readAllBytes(new File(fileName).toPath());
-        Signature signature = Signature.getInstance("SHA256withRSA");
-        signature.initSign(key);
-        signature.update(inputBytes);
-
-        return signature.sign();
-    }
-
-    private byte[] usernameToIV(String username) {
-        String holder = new String(username);
-
-        while (holder.length() < 16)
-            holder = holder.concat(username);
-
-        return holder.substring(0, 16).getBytes();
-    }
-
-    public void close() throws IOException {
-        FileOutputStream fos = new FileOutputStream("fileCache.json");
-        fos.write(this.cache.toString().getBytes());
         this.frontend.close();
     }
 }

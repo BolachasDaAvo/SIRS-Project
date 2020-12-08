@@ -14,8 +14,6 @@ import java.security.*;
 import java.security.cert.*;
 import java.util.Base64;
 import java.util.List;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NettyChannelBuilder;
@@ -41,7 +39,7 @@ public class ClientFrontend {
         stub.register(request);
     }
 
-    public List<String> login(String username, PrivateKey privateKey) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, UnsupportedEncodingException {
+    public List<String> login(String username, Key privateKey) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, UnsupportedEncodingException {
 
         // Request number
         NumberRequest numberRequest = NumberRequest.newBuilder().setUsername(username).build();
@@ -64,8 +62,7 @@ public class ClientFrontend {
     }
 
     public int upload(String filename, byte[] signature, String owner) throws FileNotFoundException, IOException {
-        String name = Paths.get(filename).normalize().toString();
-        UploadRequest.Builder request = UploadRequest.newBuilder().setName(name);
+        UploadRequest.Builder request = UploadRequest.newBuilder().setName(filename);
         FileInputStream fis = new FileInputStream("./files/" + filename);
         ByteString bytes = ByteString.readFrom(fis);
         ByteString sig = ByteString.copyFrom(signature);

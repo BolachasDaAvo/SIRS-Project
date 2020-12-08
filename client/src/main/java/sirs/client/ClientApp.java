@@ -4,10 +4,13 @@ import javax.net.ssl.SSLException;
 import java.util.Scanner;
 import java.io.IOException;
 import org.json.simple.parser.ParseException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.GeneralSecurityException;
 
 public class ClientApp {
 
-    public static void main(String[] args) throws ParseException, IOException, SSLException {
+    public static void main(String[] args) throws GeneralSecurityException, ParseException, IOException, SSLException {
         Scanner sc = new Scanner(System.in);
 
         String host = "localhost";
@@ -26,49 +29,59 @@ public class ClientApp {
                         if (command.length != 2)
                             System.out.println("Invalid command");
                         else
-                            logic.login(command[1], "keys/key_pkcs8.key");
+                            logic.login(command[1]);
                         break;
 
                     case "download":
                         if (command.length != 2)
                             System.out.println("Invalid command");
-                        else
-                            logic.download(command[1]);
+                        else {
+                            String name = Paths.get(command[1]).normalize().toString();
+                            logic.download(name);
+                        }
                         break;
 
                     case "upload":
                         if (command.length != 2)
                             System.out.println("Invalid command");
-                        else
-                            logic.upload(command[1]);
+                        else {
+                            String name = Paths.get(command[1]).normalize().toString();
+                            logic.upload(name);
+                        }
                         break;
 
                     case "invite":
                         if (command.length != 3)
                             System.out.println("Invalid command");
-                        else
-                            logic.invite(command[1], command[2]);
+                        else {
+                            String file = Paths.get(command[2]).normalize().toString();
+                            logic.invite(command[1], file);
+                        }
                         break;
 
                     case "register":
                         if (command.length != 2)
                             System.out.println("Invalid command");
                         else
-                            logic.register(command[1], "keys/cert.pem");
+                            logic.register(command[1], "keys/cert.pem", "keys/key_pkcs8.key");
                         break;
                     
                     case "accept":
                         if (command.length != 2)
                             System.out.println("Invalid command");
-                        else
-                            logic.accept(command[1]);
+                        else {
+                            String name = Paths.get(command[1]).normalize().toString();
+                            logic.accept(name);
+                        }
                         break;
 
                     case "unlock":
                         if (command.length != 2)
                             System.out.print("Invalid command");
-                        else
-                            logic.unlock(command[1]);
+                        else {
+                            String name = Paths.get(command[1]).normalize().toString();
+                            logic.unlock(name);
+                        }
                         break;
 
                     case "exit":
