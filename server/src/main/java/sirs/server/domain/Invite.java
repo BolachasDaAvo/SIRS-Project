@@ -23,14 +23,6 @@ public class Invite {
     @Column(name = "fileKey", nullable = false, columnDefinition = "BLOB")
     private byte[] fileKey;
 
-    /*
-        I, João Coutinho ist189470, will buy a burguer for whomever finds a way
-        to remove invites from the DB when they are accepted. Until then, this
-        horrible boolean will live here as a testimony to my past suffering.
-    */
-    @Column(name = "accepted", nullable = false)
-    private boolean accepted;
-
     public Invite() {
     }
 
@@ -38,15 +30,6 @@ public class Invite {
         this.user = user;
         this.file = file;
         this.fileKey = fileKey;
-        this.accepted = false;
-    }
-
-    public boolean getAccepted() {
-        return this.accepted;
-    }
-
-    public void setAccepted(boolean accepted) {
-        this.accepted = accepted;
     }
 
     public User getUser() {

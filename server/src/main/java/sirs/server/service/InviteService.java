@@ -61,7 +61,6 @@ public class InviteService {
         Invite invite = inviteRepository.findById(inviteId).orElseThrow();
         User user = invite.getUser();
         File file = invite.getFile();
-        invite.setAccepted(true);
         user.addFile(file);
         file.addCollaborator(user);
         user.removeInvite(invite);
