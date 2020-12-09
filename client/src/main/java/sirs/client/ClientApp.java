@@ -21,6 +21,7 @@ public class ClientApp {
 
         do {
             System.out.print("> ");
+            System.out.flush();
             command = sc.nextLine().split(" ");
             try {
 
@@ -85,8 +86,10 @@ public class ClientApp {
                         break;
 
                     case "unlock":
-                        if (command.length != 2)
+                        if (command.length != 2) {
                             System.out.print("Invalid command");
+                            System.out.flush();
+                        }
                         else {
                             String name = Paths.get(command[1]).normalize().toString();
                             logic.unlock(name);

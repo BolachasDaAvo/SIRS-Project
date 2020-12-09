@@ -76,6 +76,7 @@ public class ClientLogic {
         }
 
         System.out.print("Set password:");
+        System.out.flush();
         char[] newPassword = System.console().readPassword();
         SecurityLogic.createKeystore(username, newPassword, pair.getLeft(), pair.getRight());
     }
@@ -84,6 +85,7 @@ public class ClientLogic {
         try {
             this.username = username;
             System.out.print("Insert password:");
+            System.out.flush();
             this.password = System.console().readPassword();
             PrivateKey privateKey = (PrivateKey)  SecurityLogic.getKey(username, this.password, "auth");
             List<String> invites = this.frontend.login(username, privateKey);

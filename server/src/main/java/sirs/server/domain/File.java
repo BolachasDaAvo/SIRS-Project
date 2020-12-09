@@ -36,7 +36,7 @@ public class File {
     @ManyToMany(fetch = FetchType.EAGER, mappedBy = "files", cascade = CascadeType.REMOVE)
     private List<User> collaborators = new ArrayList<>();
 
-    @OneToMany(mappedBy = "file", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    @OneToMany(mappedBy = "file", cascade = CascadeType.REMOVE)
     private List<Invite> pendingInvites = new ArrayList<Invite>();
 
     public File() {

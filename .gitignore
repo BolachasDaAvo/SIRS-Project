@@ -168,3 +168,5 @@ server/users/*
 
 client/poem.txt.aes
 client/poem.txt.key
+client/files/*
+client/*.ks

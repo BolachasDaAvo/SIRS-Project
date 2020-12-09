@@ -14,10 +14,10 @@ public class Invite {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    @ManyToOne(fetch = FetchType.EAGER, cascade = CascadeType.REMOVE)
+    @ManyToOne(fetch = FetchType.EAGER)
     private User user;
 
-    @ManyToOne(fetch = FetchType.EAGER, cascade = CascadeType.REMOVE)
+    @ManyToOne(fetch = FetchType.EAGER)
     private File file;
 
     @Column(name = "fileKey", nullable = false, columnDefinition = "BLOB")

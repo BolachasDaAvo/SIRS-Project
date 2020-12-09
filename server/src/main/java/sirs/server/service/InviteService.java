@@ -64,6 +64,9 @@ public class InviteService {
         invite.setAccepted(true);
         user.addFile(file);
         file.addCollaborator(user);
+        user.removeInvite(invite);
+        file.removeInvite(invite);
+        inviteRepository.deleteById(inviteId);
     }
 
     @Retryable(value = {SQLException.class}, backoff = @Backoff(delay = 5000))
