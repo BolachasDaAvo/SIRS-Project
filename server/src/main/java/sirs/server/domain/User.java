@@ -106,6 +106,10 @@ public class User {
         pendingInvites.remove(invite);
     }
 
+    public void removeFile(File file) {
+        this.files.remove(file);
+    }
+
     @Override
     public String toString() {
         return "User{" +

@@ -124,6 +124,11 @@ public class ClientLogic {
             return;
         }
 
+        if (fileKey == null) {
+            System.out.println("Unable to unlock: You do not have the key for this file");
+            return;
+        }
+
         byte[] iv = SecurityLogic.usernameToIV(lastModifier);
         try {
             SecurityLogic.transform(encryptedFile, fileName, fileKey, Cipher.DECRYPT_MODE, iv);
@@ -235,9 +240,60 @@ public class ClientLogic {
 
     }
 
-    // Invites user to edit file
-    public void invite(String username, String fileName) throws GeneralSecurityException, IOException {
+    // Removes user from shar
+    public void remove(String username, String fileName) throws GeneralSecurityException, IOException {
 
+        if (this.username.equals("")) {
+            System.out.println("User not logged in");
+            return;
+        }
+
+        List<Pair<String, ByteString>> users;
+        try {
+            users = this.frontend.remove(fileName + ".aes", username);
+        } catch (Exception e) {
+            System.out.println("Unable to remove: " + e.getMessage());
+            return;
+        }
+        
+        Key fileKey;
+        try {
+            fileKey = SecurityLogic.generateAESKey(this.username, this.password, fileName);
+        } catch (GeneralSecurityException | IOException e) {
+            System.out.println("Unable to remove: " + e.getMessage());
+            return;
+        }
+
+        // Reupload file encrypted with new key
+        this.upload(fileName);
+
+        // Resend invites to other collaborators
+        for (Pair<String, ByteString> user : users) {
+            String invited = user.getLeft();
+            ByteString cert = user.getRight();
+
+            byte[] certBytes = new byte[cert.size()];
+            cert.copyTo(certBytes, 0);
+            X509Certificate certificate = (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(new ByteArrayInputStream(certBytes));
+
+            Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+            cipher.init(Cipher.ENCRYPT_MODE, certificate);
+            byte[] keyBytes = cipher.doFinal(fileKey.getEncoded());
+
+            String encryptedFile = fileName + ".aes";
+            try {
+                this.frontend.invite(invited, encryptedFile, keyBytes);
+            } catch (Exception e) {
+                System.out.println("Unable to resend invites: " + e.getMessage());
+                return;
+            }
+        }
+        System.out.println("User removed");
+    }
+
+    // Invites user to edit file
+    public void invite(String username, String fileName) throws GeneralSecurityException, IOException { 
+           
         if (this.username.equals("")) {
             System.out.println("User not logged in");
             return;
@@ -257,6 +313,11 @@ public class ClientLogic {
             fileKey = SecurityLogic.getKey(this.username, this.password, fileName).getEncoded();
         } catch (GeneralSecurityException | IOException e) {
             System.out.println("Unable to send invite: " + e.getMessage());
+            return;
+        }
+
+        if (fileKey == null) {
+            System.out.println("Unable to invite: File key not found");
             return;
         }
 

@@ -47,7 +47,7 @@ public class SecurityLogic {
         keystore.setKeyEntry("auth", privKey, password, new Certificate[] {cert});
 
         FileOutputStream fos = new FileOutputStream(username + ".ks");
-        keystore.store(fos, newPassword);
+        keystore.store(fos, password);
         fos.close();
     }
 
@@ -55,7 +55,7 @@ public class SecurityLogic {
         String bc = BouncyCastleProvider.PROVIDER_NAME;
         Security.addProvider(new BouncyCastleProvider());
         KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA", bc);
-        keyPairGenerator.initialize(2048);
+        keyPairGenerator.initialize(4096);
         KeyPair keyPair = keyPairGenerator.generateKeyPair();
         X500Name dnName = new X500Name("CN=sirs");
         BigInteger certSerialNumber = BigInteger.valueOf(System.currentTimeMillis());

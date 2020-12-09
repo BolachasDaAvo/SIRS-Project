@@ -13,7 +13,7 @@ public class ClientApp {
     public static void main(String[] args) throws GeneralSecurityException, ParseException, IOException, SSLException {
         Scanner sc = new Scanner(System.in);
 
-        String host = "localhost";
+        String host = "127.0.0.1";
         int port = 8443;
 
         ClientLogic logic = new ClientLogic(host, port);
@@ -56,6 +56,15 @@ public class ClientApp {
                         else {
                             String file = Paths.get(command[2]).normalize().toString();
                             logic.invite(command[1], file);
+                        }
+                        break;
+
+                    case "remove":
+                        if (command.length != 3)
+                            System.out.println("Invalid command");
+                        else {
+                            String file = Paths.get(command[2]).normalize().toString();
+                            logic.remove(command[1], file);
                         }
                         break;
 

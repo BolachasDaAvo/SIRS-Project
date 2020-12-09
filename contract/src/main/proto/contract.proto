@@ -76,6 +76,19 @@ message AcceptResponse {
     bytes key = 1;
 }
 
+message RemoveRequest {
+    string file = 1;
+    string user = 2;
+}
+
+message RemoveResponse {
+    message User {
+        string username = 1;
+        bytes certificate = 2;
+    }
+    repeated User user = 1;
+}
+
 service Remote {
     rpc upload(UploadRequest) returns (UploadResponse);
     rpc Download(DownloadRequest) returns (DownloadResponse);
@@ -85,4 +98,5 @@ service Remote {
     rpc Share(ShareRequest) returns (ShareResponse);
     rpc Invite(InviteRequest) returns (InviteResponse);
     rpc Accept(AcceptRequest) returns (AcceptResponse);
+    rpc Remove(RemoveRequest) returns (RemoveResponse);
 }

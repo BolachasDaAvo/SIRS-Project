@@ -12,6 +12,7 @@ import sirs.server.repository.FileRepository;
 import sirs.server.repository.UserRepository;
 
 import java.sql.SQLException;
+import java.util.List;
 
 @Service
 public class FileService {
@@ -50,11 +51,24 @@ public class FileService {
         return user.getFileByName(name);
     }
 
+
     @Retryable(value = {SQLException.class}, backoff = @Backoff(delay = 5000))
     @Transactional(isolation = Isolation.REPEATABLE_READ)
-    public void updateFileContent() {
-        //TODO: decide how we want to do this since files may be very big and not fit in memory
-        // we should do it by batches, just need to decide where.
+    public List<User> getFileCollaboratos(int fileId) {
+        File file = fileRepository.findById(fileId).orElseThrow();
+        return file.getCollaborators();
+    }
+
+    @Retryable(value = {SQLException.class}, backoff = @Backoff(delay = 5000))
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
+    public void clearCollaborators(int fileId) {
+        File file = fileRepository.findById(fileId).orElseThrow();
+
+        for (User user : file.getCollaborators()) {
+            user.removeFile(file);
+        }
+
+        file.clearCollaborators();
     }
 
     @Retryable(value = {SQLException.class}, backoff = @Backoff(delay = 5000))

@@ -67,6 +67,11 @@ public class ServerImpl extends RemoteImplBase {
         if (file == null)
             fileService.createFile(userId, filename, sigBytes);
         else {
+            file = fileService.getFileByUser(filename, userId);
+            if (file == null) {
+                responseObserver.onError(Status.NOT_FOUND.withDescription("User does not have access to file").asRuntimeException());
+                return;
+            }
             fileService.updateFile(filePath, sigBytes, userId);
         }
 
@@ -93,7 +98,7 @@ public class ServerImpl extends RemoteImplBase {
         String filename = request.getName();
         File file = fileService.getFileByUser(filename, userId);
         if (file == null) {
-            responseObserver.onError(Status.NOT_FOUND.withDescription("File " + filename + " does not exist.").asRuntimeException());
+            responseObserver.onError(Status.NOT_FOUND.withDescription("User does not have access to file.").asRuntimeException());
             return;
         }
 
@@ -146,6 +151,53 @@ public class ServerImpl extends RemoteImplBase {
 
         ShareResponse response = ShareResponse.newBuilder().setCertificate(cert).build();
         responseObserver.onNext(response);
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void remove(final RemoveRequest request, final StreamObserver<RemoveResponse> responseObserver) {
+        Integer userId = AuthInterceptor.USER_ID.get();
+        if (userId == -1) {
+            responseObserver.onError(Status.UNAUTHENTICATED.withDescription("Remove endpoint is for authenticated users only.").asRuntimeException());
+            return;
+        }
+
+        // Make sure user owns the file
+        String fileName = request.getFile();
+        File file = fileService.getFileByUser(fileName, userId);
+        if (file == null || file.getOwner().getId() != userId) {
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("User does not own the file.").asRuntimeException());
+            return;
+        }
+
+        String username = request.getUser();
+        User user;
+        try {
+            user = userService.getUserByUsername(username);
+        } catch (Exception e) {
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("User does not exist.").asRuntimeException());
+            return;
+        }
+
+        // Collect certificates
+        RemoveResponse.Builder response = RemoveResponse.newBuilder();
+        for (User collaborator : fileService.getFileCollaboratos(file.getId())) {
+            if (collaborator.getId() == userId || collaborator.getUsername().equals(username)) {
+                continue;
+            }
+
+            byte[] certBytes = collaborator.getCertificate();
+            ByteString cert = ByteString.copyFrom(certBytes);
+            RemoveResponse.User pair = RemoveResponse.User.newBuilder()
+                .setUsername(collaborator.getUsername())
+                .setCertificate(cert)
+                .build();
+            response.addUser(pair);
+        }
+        fileService.clearCollaborators(file.getId());
+        fileService.addCollaborator(file.getId(), userId);
+
+        responseObserver.onNext(response.build());
         responseObserver.onCompleted();
     }
 

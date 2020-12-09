@@ -33,7 +33,7 @@ public class File {
     @Column(name = "signature", nullable = false, columnDefinition = "BLOB")
     private byte[] signature;
 
-    @ManyToMany(fetch = FetchType.LAZY, mappedBy = "files", cascade = CascadeType.REMOVE)
+    @ManyToMany(fetch = FetchType.EAGER, mappedBy = "files", cascade = CascadeType.REMOVE)
     private List<User> collaborators = new ArrayList<>();
 
     @OneToMany(mappedBy = "file", cascade = CascadeType.REMOVE, orphanRemoval = true)
@@ -87,6 +87,10 @@ public class File {
 
     public void setCollaborators(List<User> collaborators) {
         this.collaborators = collaborators;
+    }
+
+    public void clearCollaborators() {
+        this.collaborators.clear();
     }
 
     public User getLastModifier() {

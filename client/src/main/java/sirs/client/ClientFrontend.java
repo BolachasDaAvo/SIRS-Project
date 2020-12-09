@@ -14,6 +14,7 @@ import java.security.*;
 import java.security.cert.*;
 import java.util.Base64;
 import java.util.List;
+import java.util.ArrayList;
 
 import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NettyChannelBuilder;
@@ -24,6 +25,7 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.net.ssl.SSLException;
 import org.json.simple.*;
+import org.apache.commons.lang3.tuple.Pair;
 
 public class ClientFrontend {
     final ManagedChannel channel;
@@ -109,6 +111,17 @@ public class ClientFrontend {
         } else {
             return null;
         }
+    }
+
+    public List<Pair<String, ByteString>> remove(String fileName, String username) {
+        RemoveRequest request = RemoveRequest.newBuilder().setFile(fileName).setUser(username).build();
+        RemoveResponse response = stub.remove(request);
+
+        List<Pair<String, ByteString>> list = new ArrayList<Pair<String, ByteString>>();
+        for (RemoveResponse.User user : response.getUserList()) {
+            list.add(Pair.of(user.getUsername(), user.getCertificate()));
+        }
+        return list;
     }
 
     public byte[] share(String user) {
