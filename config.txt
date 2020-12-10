@@ -1,4 +1,0 @@
-server 1 localhost 8081 master
-server 2 localhost 8082 backup
-client 1 localhost 8182
-client 2 localhost 8182

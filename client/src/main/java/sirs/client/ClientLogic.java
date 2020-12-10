@@ -29,6 +29,8 @@ import java.util.List;
 import org.json.simple.*;
 import org.json.simple.parser.*;
 import java.util.Scanner;
+
+import pt.ulisboa.tecnico.sdis.zk.ZKNamingException;
 import sirs.client.SecurityLogic;
 import org.apache.commons.lang3.tuple.Pair;
 import org.bouncycastle.operator.OperatorCreationException;
@@ -40,8 +42,8 @@ public class ClientLogic {
     char[] password;
     JSONObject cache;
 
-    public ClientLogic(String host, int port) throws GeneralSecurityException, SSLException, IOException, ParseException {
-        this.frontend = new ClientFrontend(host, port);
+    public ClientLogic(String zkHost, String zkPort) throws IOException, ParseException, ZKNamingException {
+        this.frontend = new ClientFrontend(zkHost, zkPort);
 
         // Load file cache
         try {
@@ -53,7 +55,7 @@ public class ClientLogic {
         }
     }
 
-    public void register(String username, String certificatePath, String privKey) throws OperatorCreationException, GeneralSecurityException, IOException {
+    public void register(String username) throws OperatorCreationException, GeneralSecurityException, IOException {
 
         // Username validation
         for (char chr : username.toCharArray()) {
@@ -71,14 +73,13 @@ public class ClientLogic {
             ByteString certificate = ByteString.copyFrom(pair.getRight().getEncoded());
             frontend.register(username, certificate);
             System.out.println("User registered successfully");
+            System.out.print("Set password:");
+            System.out.flush();
+            char[] newPassword = System.console().readPassword();
+            SecurityLogic.createKeystore(username, newPassword, pair.getLeft(), pair.getRight());
         } catch (StatusRuntimeException e) {
             System.out.println("Unable to register: " + e.getMessage());
         }
-
-        System.out.print("Set password:");
-        System.out.flush();
-        char[] newPassword = System.console().readPassword();
-        SecurityLogic.createKeystore(username, newPassword, pair.getLeft(), pair.getRight());
     }
 
     public void login(String username) {

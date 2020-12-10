@@ -100,3 +100,13 @@ service Remote {
     rpc Accept(AcceptRequest) returns (AcceptResponse);
     rpc Remove(RemoveRequest) returns (RemoveResponse);
 }
+
+message PingRequest {
+}
+
+message PingResponse {
+}
+
+service Replication {
+    rpc ping(PingRequest) returns (PingResponse);
+}

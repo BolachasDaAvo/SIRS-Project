@@ -1,13 +1,22 @@
 package sirs.server;
 
+import io.grpc.ManagedChannel;
 import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
+import io.grpc.netty.GrpcSslContexts;
+import io.grpc.netty.NettyChannelBuilder;
 import io.grpc.stub.StreamObserver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import pt.ulisboa.tecnico.sdis.zk.ZKNaming;
+import pt.ulisboa.tecnico.sdis.zk.ZKNamingException;
+import pt.ulisboa.tecnico.sdis.zk.ZKRecord;
 import sirs.grpc.Contract.*;
+import sirs.grpc.RemoteGrpc;
 import sirs.grpc.RemoteGrpc.RemoteImplBase;
 import com.google.protobuf.ByteString;
 import sirs.server.domain.User;
+import sirs.server.security.AuthCredentials;
 import sirs.server.security.AuthInterceptor;
 import sirs.server.security.AuthenticationException;
 import sirs.server.security.AuthenticationService;
@@ -21,6 +30,8 @@ import java.io.FileInputStream;
 
 import sirs.server.domain.File;
 import sirs.server.domain.Invite;
+
+import javax.net.ssl.SSLException;
 
 @Component
 public class ServerImpl extends RemoteImplBase {
@@ -37,6 +48,21 @@ public class ServerImpl extends RemoteImplBase {
     @Autowired
     private AuthenticationService authenticationService;
 
+    // Backup
+    public boolean primary;
+    public ZKNaming zkNaming;
+    private ManagedChannel channel;
+    private RemoteGrpc.RemoteBlockingStub stub;
+
+    static final String BASE_PATH = "/grpc/sirs/server";
+
+    private void connectToBackup() throws ZKNamingException, SSLException {
+        System.out.print("looking for backup server");
+        ZKRecord record = this.zkNaming.lookup(BASE_PATH + "/" + "backup");
+        this.channel = NettyChannelBuilder.forTarget(record.getURI()).sslContext(GrpcSslContexts.forClient().trustManager(new java.io.File("../TLS/ca-cert.pem")).build()).build();
+        this.stub = RemoteGrpc.newBlockingStub(channel);
+    }
+
     private void writeFile(ByteString bytes, String path) throws IOException {
         FileOutputStream fos = new FileOutputStream(path);
         bytes.writeTo(fos);
@@ -47,6 +73,7 @@ public class ServerImpl extends RemoteImplBase {
         return ByteString.readFrom(fis);
     }
 
+
     @Override
     public void upload(final UploadRequest request, final StreamObserver<UploadResponse> responseObserver) {
         Integer userId = AuthInterceptor.USER_ID.get();
@@ -54,6 +81,25 @@ public class ServerImpl extends RemoteImplBase {
             responseObserver.onError(Status.UNAUTHENTICATED.withDescription("Upload endpoint is for authenticated users only.").asRuntimeException());
             return;
         }
+
+        // Forward request to backup
+        if (primary) {
+            try {
+                if (stub == null) {
+                    connectToBackup();
+                }
+                stub.withCallCredentials(new AuthCredentials(AuthInterceptor.USER_TOKEN.get())).upload(request);
+            } catch (ZKNamingException e) {
+                System.out.println("Unable to find backup");
+            } catch (SSLException e) {
+                e.printStackTrace();
+                System.out.println("Unable to create channel");
+            } catch (StatusRuntimeException e) {
+                responseObserver.onError(e);
+                return;
+            }
+        }
+
         // Construct path
         User owner = userService.getUserByUsername(request.getOwner());
         String filename = request.getName();
@@ -95,6 +141,25 @@ public class ServerImpl extends RemoteImplBase {
             responseObserver.onError(Status.UNAUTHENTICATED.withDescription("Download endpoint is for authenticated users only.").asRuntimeException());
             return;
         }
+
+        // Forward request to backup
+        if (primary) {
+            try {
+                if (stub == null) {
+                    connectToBackup();
+                }
+                stub.withCallCredentials(new AuthCredentials(AuthInterceptor.USER_TOKEN.get())).download(request);
+            } catch (ZKNamingException e) {
+                System.out.println("Unable to find backup");
+            } catch (SSLException e) {
+                e.printStackTrace();
+                System.out.println("Unable to create channel");
+            } catch (StatusRuntimeException e) {
+                responseObserver.onError(e);
+                return;
+            }
+        }
+
         String filename = request.getName();
         File file = fileService.getFileByUser(filename, userId);
         if (file == null) {
@@ -110,12 +175,12 @@ public class ServerImpl extends RemoteImplBase {
         ByteString sig = ByteString.copyFrom(sigBytes);
         User modifier = file.getLastModifier();
         int version = file.getVersion();
-        User owner = file.getOwner(); 
+        User owner = file.getOwner();
         byte[] certBytes = modifier.getCertificate();
         ByteString cert = ByteString.copyFrom(certBytes);
         try {
             bytes = readFile(filePath);
-        } catch(IOException e) {
+        } catch (IOException e) {
             responseObserver.onError(Status.UNKNOWN.withDescription("Failed reading file").asRuntimeException());
             return;
         }
@@ -136,6 +201,24 @@ public class ServerImpl extends RemoteImplBase {
         if (userId == -1) {
             responseObserver.onError(Status.UNAUTHENTICATED.withDescription("Share endpoint is for authenticated users only.").asRuntimeException());
             return;
+        }
+
+        // Forward request to backup
+        if (primary) {
+            try {
+                if (stub == null) {
+                    connectToBackup();
+                }
+                stub.withCallCredentials(new AuthCredentials(AuthInterceptor.USER_TOKEN.get())).share(request);
+            } catch (ZKNamingException e) {
+                System.out.println("Unable to find backup");
+            } catch (SSLException e) {
+                e.printStackTrace();
+                System.out.println("Unable to create channel");
+            } catch (StatusRuntimeException e) {
+                responseObserver.onError(e);
+                return;
+            }
         }
 
         String username = request.getUser();
@@ -160,6 +243,24 @@ public class ServerImpl extends RemoteImplBase {
         if (userId == -1) {
             responseObserver.onError(Status.UNAUTHENTICATED.withDescription("Remove endpoint is for authenticated users only.").asRuntimeException());
             return;
+        }
+
+        // Forward request to backup
+        if (primary) {
+            try {
+                if (stub == null) {
+                    connectToBackup();
+                }
+                stub.withCallCredentials(new AuthCredentials(AuthInterceptor.USER_TOKEN.get())).remove(request);
+            } catch (ZKNamingException e) {
+                System.out.println("Unable to find backup");
+            } catch (SSLException e) {
+                e.printStackTrace();
+                System.out.println("Unable to create channel");
+            } catch (StatusRuntimeException e) {
+                responseObserver.onError(e);
+                return;
+            }
         }
 
         // Make sure user owns the file
@@ -189,9 +290,9 @@ public class ServerImpl extends RemoteImplBase {
             byte[] certBytes = collaborator.getCertificate();
             ByteString cert = ByteString.copyFrom(certBytes);
             RemoveResponse.User pair = RemoveResponse.User.newBuilder()
-                .setUsername(collaborator.getUsername())
-                .setCertificate(cert)
-                .build();
+                    .setUsername(collaborator.getUsername())
+                    .setCertificate(cert)
+                    .build();
             response.addUser(pair);
         }
         fileService.clearCollaborators(file.getId());
@@ -207,6 +308,24 @@ public class ServerImpl extends RemoteImplBase {
         if (userId == -1) {
             responseObserver.onError(Status.UNAUTHENTICATED.withDescription("Invite endpoint is for authenticated users only.").asRuntimeException());
             return;
+        }
+
+        // Forward request to backup
+        if (primary) {
+            try {
+                if (stub == null) {
+                    connectToBackup();
+                }
+                stub.withCallCredentials(new AuthCredentials(AuthInterceptor.USER_TOKEN.get())).invite(request);
+            } catch (ZKNamingException e) {
+                System.out.println("Unable to find backup");
+            } catch (SSLException e) {
+                e.printStackTrace();
+                System.out.println("Unable to create channel");
+            } catch (StatusRuntimeException e) {
+                responseObserver.onError(e);
+                return;
+            }
         }
 
         // Make sure user owns the file
@@ -248,6 +367,25 @@ public class ServerImpl extends RemoteImplBase {
             responseObserver.onError(Status.UNAUTHENTICATED.withDescription("Accept endpoint is for authenticated users only.").asRuntimeException());
             return;
         }
+
+        // Forward request to backup
+        if (primary) {
+            try {
+                if (stub == null) {
+                    connectToBackup();
+                }
+                stub.withCallCredentials(new AuthCredentials(AuthInterceptor.USER_TOKEN.get())).accept(request);
+            } catch (ZKNamingException e) {
+                System.out.println("Unable to find backup");
+            } catch (SSLException e) {
+                e.printStackTrace();
+                System.out.println("Unable to create channel");
+            } catch (StatusRuntimeException e) {
+                responseObserver.onError(e);
+                return;
+            }
+        }
+
         Invite invite = inviteService.getInviteByUser(request.getFile(), userId);
         if (invite == null) {
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("User has not been invited to edit this file.").asRuntimeException());
@@ -263,6 +401,25 @@ public class ServerImpl extends RemoteImplBase {
 
     @Override
     public void register(RegisterRequest request, StreamObserver<RegisterResponse> responseObserver) {
+
+        // Forward request to backup
+        if (primary) {
+            try {
+                if (stub == null) {
+                    connectToBackup();
+                }
+                stub.register(request);
+            } catch (ZKNamingException e) {
+                System.out.println("Unable to find backup");
+            } catch (SSLException e) {
+                e.printStackTrace();
+                System.out.println("Unable to create channel");
+            } catch (StatusRuntimeException e) {
+                responseObserver.onError(e);
+                return;
+            }
+        }
+
         User user;
         try {
             user = this.authenticationService.registerUser(request.getUsername(), request.getCertificate().toByteArray());
@@ -272,7 +429,7 @@ public class ServerImpl extends RemoteImplBase {
         }
 
         // Create user directory
-        java.io.File directory = new java.io.File("./users/" + user.getId() +"/");
+        java.io.File directory = new java.io.File("./users/" + user.getId() + "/");
         if (!directory.exists()) {
             directory.mkdirs();
         }

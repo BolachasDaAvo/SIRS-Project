@@ -170,3 +170,5 @@ client/poem.txt.aes
 client/poem.txt.key
 client/files/*
 client/*.ks
+apache-zookeeper-3.6.2-bin/conf/zoo.cfg
+client/zookeeper.log

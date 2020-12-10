@@ -4,19 +4,21 @@ import javax.net.ssl.SSLException;
 import java.util.Scanner;
 import java.io.IOException;
 import org.json.simple.parser.ParseException;
+import pt.ulisboa.tecnico.sdis.zk.ZKNamingException;
+
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 
 public class ClientApp {
 
-    public static void main(String[] args) throws GeneralSecurityException, ParseException, IOException, SSLException {
+    public static void main(String[] args) throws ParseException, IOException, ZKNamingException {
         Scanner sc = new Scanner(System.in);
 
-        String host = "127.0.0.1";
-        int port = 8443;
+        String zkHost = args[0];
+        String zkPort = args[1];
 
-        ClientLogic logic = new ClientLogic(host, port);
+        ClientLogic logic = new ClientLogic(zkHost, zkPort);
         String[] command;
 
         do {
@@ -73,7 +75,7 @@ public class ClientApp {
                         if (command.length != 2)
                             System.out.println("Invalid command");
                         else
-                            logic.register(command[1], "keys/cert.pem", "keys/key_pkcs8.key");
+                            logic.register(command[1]);
                         break;
                     
                     case "accept":
