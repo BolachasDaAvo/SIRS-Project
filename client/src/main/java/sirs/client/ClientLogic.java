@@ -212,7 +212,6 @@ public class ClientLogic {
         }
         this.cache.put(fileName, file);
 
-        new File(fileName).delete();
         System.out.println("File uploaded");
     }
 

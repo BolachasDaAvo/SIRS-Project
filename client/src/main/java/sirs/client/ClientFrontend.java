@@ -293,7 +293,9 @@ public class ClientFrontend {
 
     private void GetPrimaryChannel() throws ZKNamingException, SSLException {
         ZKRecord record = this.zkNaming.lookup(BASE_PATH + "/" + "primary");
-
+        if (this.channel != null) {
+            this.channel.shutdownNow();
+        }
         this.channel = NettyChannelBuilder.forTarget(record.getURI()).sslContext(GrpcSslContexts.forClient().trustManager(new File("../TLS/ca-cert.pem")).build()).build();
         if (this.token != null) {
             this.stub = RemoteGrpc.newBlockingStub(channel).withCallCredentials(new AuthCredentials(this.token));
