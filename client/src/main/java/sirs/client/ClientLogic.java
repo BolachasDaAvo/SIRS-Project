@@ -94,7 +94,14 @@ public class ClientLogic {
             
             for (String invite : invites) {
                 String filename = invite.substring(0, invite.lastIndexOf('.'));
-                System.out.println("You have been invited to edit " + filename);
+                if (SecurityLogic.getKey(this.username, this.password, filename) == null)
+                    System.out.println("You have been invited to edit " + filename);
+                else {
+                    System.out.println("A user has been removed from " + filename + "'s share");
+                    System.out.println("Getting new key and file");
+                    this.accept(filename);
+                    this.download(filename);
+                }
             }
         } catch (StatusRuntimeException | IOException | GeneralSecurityException e) {
             System.out.println("Unable to login: " + e.getMessage());

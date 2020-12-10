@@ -26,6 +26,7 @@ import sirs.server.service.UserService;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.List;
 import java.io.FileInputStream;
 
 import sirs.server.domain.File;
@@ -115,7 +116,7 @@ public class ServerImpl extends RemoteImplBase {
         else {
             file = fileService.getFileByUser(filename, userId);
             if (file == null) {
-                responseObserver.onError(Status.NOT_FOUND.withDescription("User does not have access to file").asRuntimeException());
+                responseObserver.onError(Status.NOT_FOUND.withDescription("You do not have access to file").asRuntimeException());
                 return;
             }
             fileService.updateFile(filePath, sigBytes, userId);
@@ -163,7 +164,7 @@ public class ServerImpl extends RemoteImplBase {
         String filename = request.getName();
         File file = fileService.getFileByUser(filename, userId);
         if (file == null) {
-            responseObserver.onError(Status.NOT_FOUND.withDescription("User does not have access to file.").asRuntimeException());
+            responseObserver.onError(Status.NOT_FOUND.withDescription("You do not have access to file.").asRuntimeException());
             return;
         }
 
@@ -267,7 +268,7 @@ public class ServerImpl extends RemoteImplBase {
         String fileName = request.getFile();
         File file = fileService.getFileByUser(fileName, userId);
         if (file == null || file.getOwner().getId() != userId) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("User does not own the file.").asRuntimeException());
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("You do not own the file.").asRuntimeException());
             return;
         }
 
@@ -277,6 +278,12 @@ public class ServerImpl extends RemoteImplBase {
             user = userService.getUserByUsername(username);
         } catch (Exception e) {
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("User does not exist.").asRuntimeException());
+            return;
+        }
+
+        // Check if user is in share
+        if (fileService.getFileByUser(fileName, user.getId()) == null) {
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("User does not have access to file.").asRuntimeException());
             return;
         }
 
@@ -332,7 +339,7 @@ public class ServerImpl extends RemoteImplBase {
         String fileName = request.getFile();
         File file = fileService.getFileByUser(fileName, userId);
         if (file == null || file.getOwner().getId() != userId) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("User does not own the file.").asRuntimeException());
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("You do not own the file.").asRuntimeException());
             return;
         }
 
@@ -388,7 +395,7 @@ public class ServerImpl extends RemoteImplBase {
 
         Invite invite = inviteService.getInviteByUser(request.getFile(), userId);
         if (invite == null) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("User has not been invited to edit this file.").asRuntimeException());
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("You have not been invited to edit this file.").asRuntimeException());
             return;
         }
         inviteService.acceptInvite(invite.getId());
