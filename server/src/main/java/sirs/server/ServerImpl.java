@@ -455,8 +455,7 @@ public class ServerImpl extends RemoteImplBase {
             User user = userService.getUserByUsername(request.getUsername());
 
             for (Invite invite : user.getPendingInvites()) {
-                if (!invite.getAccepted())
-                    tokenResponse.addInvite(invite.getFile().getName());
+                tokenResponse.addInvite(invite.getFile().getName());
             }
 
             tokenResponse.setToken(token);
