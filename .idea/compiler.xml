@@ -15,8 +15,6 @@
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="naming" target="14" />
-      <module name="uddi-naming" target="1.7" />
-      <module name="zk-naming" target="1.8" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
