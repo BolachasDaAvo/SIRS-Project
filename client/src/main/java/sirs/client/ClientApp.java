@@ -39,7 +39,10 @@ public class ClientApp {
                         if (command.length != 2)
                             System.out.println("Invalid command");
                         else {
-                            String name = Paths.get(command[1]).normalize().toString();
+                            if (command[1].contains("/")) {
+                                System.out.println("File must not contain '/'");
+                            }
+                            String name = command[1];
                             logic.download(name);
                         }
                         break;
@@ -48,7 +51,10 @@ public class ClientApp {
                         if (command.length != 2)
                             System.out.println("Invalid command");
                         else {
-                            String name = Paths.get(command[1]).normalize().toString();
+                            if (command[1].contains("/")) {
+                                System.out.println("File must not contain '/'");
+                            }
+                            String name = command[1];
                             logic.upload(name);
                         }
                         break;
@@ -57,8 +63,11 @@ public class ClientApp {
                         if (command.length != 3)
                             System.out.println("Invalid command");
                         else {
-                            String file = Paths.get(command[2]).normalize().toString();
-                            logic.invite(command[1], file);
+                            if (command[2].contains("/")) {
+                                System.out.println("File must not contain '/'");
+                            }
+                            String name = command[2];
+                            logic.invite(command[1], name);
                         }
                         break;
 
@@ -66,8 +75,11 @@ public class ClientApp {
                         if (command.length != 3)
                             System.out.println("Invalid command");
                         else {
-                            String file = Paths.get(command[2]).normalize().toString();
-                            logic.remove(command[1], file);
+                            if (command[2].contains("/")) {
+                                System.out.println("File must not contain '/'");
+                            }
+                            String name = command[2];
+                            logic.remove(command[1], name);
                         }
                         break;
 
@@ -82,7 +94,10 @@ public class ClientApp {
                         if (command.length != 2)
                             System.out.println("Invalid command");
                         else {
-                            String name = Paths.get(command[1]).normalize().toString();
+                            if (command[1].contains("/")) {
+                                System.out.println("File must not contain '/'");
+                            }
+                            String name = command[1];
                             logic.accept(name);
                         }
                         break;
@@ -93,7 +108,10 @@ public class ClientApp {
                             System.out.flush();
                         }
                         else {
-                            String name = Paths.get(command[1]).normalize().toString();
+                            if (command[1].contains("/")) {
+                                System.out.println("File must not contain '/'");
+                            }
+                            String name = command[1];
                             logic.unlock(name);
                         }
                         break;
