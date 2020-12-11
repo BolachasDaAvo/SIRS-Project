@@ -4,7 +4,7 @@
 
 + Linux based OS (64 bit)
 + Java 14
-+ MyQSL database or anything compatible (MariaDB)
++ MySQL database or anything compatible (e.g.: MariaDB)
 + Zookeeper
 
 ## Building the solution
